@@ -1,0 +1,5 @@
+int64 call_distance
+int64 call_depth
+---
+int64 output_distance
+int64 output_depth
