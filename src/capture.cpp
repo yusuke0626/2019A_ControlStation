@@ -10,8 +10,6 @@
 bool send_distance(control_station::RsOperator::Request &req ,control_station::RsOperator::Response &res){
     //request_distance.output_distance =  
 } 
-
-
 int main(int argc, char **argv)
 {
     ros::init(argc, argv, "realsense_info");
@@ -49,8 +47,20 @@ int main(int argc, char **argv)
         std::vector<int> marker_ids;
         std::vector<std::vector<cv::Point2f>> marker_corners;
         cv::Ptr<cv::aruco::DetectorParameters> parameters = cv::aruco::DetectorParameters::create();
-        cv::aruco::detectMarkers(color, dictionary, marker_corners, marker_ids, parameters);
+        cv::aruco::detectMarkers(color, dictionary, marker_corners , marker_ids, parameters);
 
+        int sum_marker_coordinate = 0;
+        if(marker_ids.size() > 0){
+            for(int i = 0;i < 4; i++){
+                sum_marker_coordinate += marker_corners[cv::aruco::DICT_4X4_50][i].x;
+                //std::cout << marker_corners[cv::aruco::DICT_4X4_50][0].x << std::endl;
+            }
+        }
+        int center_marker = sum_marker_coordinate / 4;        
+        std::cout << center_marker << std::endl;
+        /*cv::Mat cameraMatrix, distCoeffs;
+        std::vector <cv::Vec3d> rvecs,tvecs;
+        cv::aruco::estimatePoseSingleMarkers(corners,0.05, cameraMatrix,distCoeffs,rvecs,tvecs);*/
         // 検出したマーカーの描画
         cv::aruco::drawDetectedMarkers(color, marker_corners, marker_ids);
         cv::imshow("marker_detection", color);
