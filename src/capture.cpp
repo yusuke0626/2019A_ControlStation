@@ -6,7 +6,6 @@
 #include<opencv2/aruco.hpp>
 #include<opencv2/opencv.hpp>
 #include<librealsense2/rs.hpp>
-#include"cv-helpers.hpp"
 
 bool send_distance(control_station::RsOperator::Request &req ,control_station::RsOperator::Response &res){
     //request_distance.output_distance =  
@@ -48,20 +47,15 @@ int main(int argc, char **argv)try{
     std::chrono::steady_clock::time_point previous_time = std::chrono::steady_clock::now();
     while(true){
         rs2::frameset frames = pipe.wait_for_frames();
+        //rs2::depth_frame depth_point = frames.get_depth_frame;
         auto aligned_frames = align_to_depth.process(frames);
-        //rs2::video_frame color_frame = aligned_frames.first(RS2_STREAM_COLOR);
-        //rs2::depth_frame depth_frame = aligned_frames.get_depth_frame();
+
         auto depth_map = aligned_frames.get_depth_frame();
         auto color_map = aligned_frames.get_color_frame();
         auto colorized_depth = cr.colorize(depth_map);
 
-        //rs2::frame color_frame = frames.get_color_frame();
-        //rs2::frame depth_frame = frames.get_depth_frame();
-
         cv::Mat color(cv::Size(color_map.get_width(),color_map.get_height()), CV_8UC3, (void*)color_map.get_data(), cv::Mat::AUTO_STEP);
         cv::Mat depth(cv::Size(depth_map.get_width(),depth_map.get_height()), CV_8UC3, (void*)colorized_depth.get_data(), cv::Mat::AUTO_STEP);
-        //auto color_mat = frame_to_mat(color_map);
-        //auto depth_mat = depth_frame_to_meters(pipe,depth_map);
        // マーカーの検出
         std::vector<int> marker_ids;
         std::vector<std::vector<cv::Point2f>> marker_corners;
@@ -70,21 +64,20 @@ int main(int argc, char **argv)try{
 
         int sum_marker_coordinate_x = 0;
         int sum_marker_coordinate_y = 0;
-        //std::chrono::steady_clock::time_point begin = std::chrono::steady_clock::now();
+
         if(marker_ids.size() > 0){
-            //std::chrono::steady_clock::time_point begin = std::chrono::steady_clock::now();
             for(int i = 0;i < 4; i++){
                 sum_marker_coordinate_x += marker_corners[cv::aruco::DICT_4X4_50][i].x;
                 sum_marker_coordinate_y += marker_corners[cv::aruco::DICT_4X4_50][i].y;
-                //std::cout << marker_corners[cv::aruco::DICT_4X4_50][0].x << std::endl;
             }
             std::chrono::steady_clock::time_point now_time = std::chrono::steady_clock::now(); 
             std::chrono::milliseconds elapsed_time = std::chrono::duration_cast<std::chrono::milliseconds>(now_time - previous_time);
             if(elapsed_time.count() > 50){
                 int center_marker_x = sum_marker_coordinate_x / 4; 
                 int center_marker_y = sum_marker_coordinate_y / 4;  
+                double pixel_distance_in_meters = depth_map.get_distance(center_marker_x,center_marker_y);
                 previous_time = now_time;
-                std::cout << "x:" << center_marker_x << "y:" << center_marker_y << std::endl;
+                std::cout << "x:" << center_marker_x << "  y:" << center_marker_y << "  z:" << pixel_distance_in_meters <<std::endl;
             }
         }
        /*cv::Mat cameraMatrix, distCoeffs;
@@ -95,7 +88,7 @@ int main(int argc, char **argv)try{
         //cv::imshow("marker_detection", color);
         //cv::imshow("depth",depth);
         cv::Mat dst;
-        cv::addWeighted(color, 0.5, depth, 0.5, 0.0, dst);
+        cv::addWeighted(color, 0.8, depth, 0.2, 0.0, dst);
         cv::imshow("merge",dst);
 
         //cv::namedWindow("color", cv::WINDOW_AUTOSIZE);
