@@ -6,10 +6,16 @@
 #include<opencv2/aruco.hpp>
 #include<opencv2/opencv.hpp>
 #include<librealsense2/rs.hpp>
+#include"cv-helpers.hpp"
 
 bool send_distance(control_station::RsOperator::Request &req ,control_station::RsOperator::Response &res){
     //request_distance.output_distance =  
 } 
+
+constexpr std::size_t WIDTH = 1280;
+constexpr std::size_t HEIGHT = 720;
+constexpr double ratio = WIDTH / (double)HEIGHT;
+
 int main(int argc, char **argv)try{
 
     ros::init(argc, argv, "realsense_info");
@@ -22,14 +28,18 @@ int main(int argc, char **argv)try{
     control_station::RsDataMsg msg;
     control_station::RsOperator srv;
 
+    rs2::colorizer cr;
+
     rs2::pipeline pipe;
     rs2::config cfg;
-     cfg.enable_stream(RS2_STREAM_DEPTH);
-    cfg.enable_stream(RS2_STREAM_COLOR, 1280, 720, RS2_FORMAT_BGR8, 30);
+    cfg.enable_stream(RS2_STREAM_COLOR, WIDTH, HEIGHT, RS2_FORMAT_BGR8, 30);
+    cfg.enable_stream(RS2_STREAM_DEPTH, WIDTH, HEIGHT, RS2_FORMAT_Z16, 30);
     pipe.start(cfg);
 
-    rs2::align align_to_depth(RS2_STREAM_DEPTH);
+    //rs2::align align_to_depth(RS2_STREAM_DEPTH);
+    
     rs2::align align_to_color(RS2_STREAM_COLOR);
+    rs2::align align_to_depth(RS2_STREAM_DEPTH);
 
      // dictionary生成
     const cv::aruco::PREDEFINED_DICTIONARY_NAME dictionary_name = cv::aruco::DICT_4X4_50;
@@ -38,9 +48,20 @@ int main(int argc, char **argv)try{
     std::chrono::steady_clock::time_point previous_time = std::chrono::steady_clock::now();
     while(true){
         rs2::frameset frames = pipe.wait_for_frames();
-        rs2::frame color_frame = frames.get_color_frame();
+        auto aligned_frames = align_to_depth.process(frames);
+        //rs2::video_frame color_frame = aligned_frames.first(RS2_STREAM_COLOR);
+        //rs2::depth_frame depth_frame = aligned_frames.get_depth_frame();
+        auto depth_map = aligned_frames.get_depth_frame();
+        auto color_map = aligned_frames.get_color_frame();
+        auto colorized_depth = cr.colorize(depth_map);
 
-        cv::Mat color(cv::Size(1280,720), CV_8UC3, (void*)color_frame.get_data(), cv::Mat::AUTO_STEP);
+        //rs2::frame color_frame = frames.get_color_frame();
+        //rs2::frame depth_frame = frames.get_depth_frame();
+
+        cv::Mat color(cv::Size(color_map.get_width(),color_map.get_height()), CV_8UC3, (void*)color_map.get_data(), cv::Mat::AUTO_STEP);
+        cv::Mat depth(cv::Size(depth_map.get_width(),depth_map.get_height()), CV_8UC3, (void*)colorized_depth.get_data(), cv::Mat::AUTO_STEP);
+        //auto color_mat = frame_to_mat(color_map);
+        //auto depth_mat = depth_frame_to_meters(pipe,depth_map);
        // マーカーの検出
         std::vector<int> marker_ids;
         std::vector<std::vector<cv::Point2f>> marker_corners;
@@ -71,7 +92,12 @@ int main(int argc, char **argv)try{
         cv::aruco::estimatePoseSingleMarkers(corners,0.05, cameraMatrix,distCoeffs,rvecs,tvecs);*/
         // 検出したマーカーの描画
         cv::aruco::drawDetectedMarkers(color, marker_corners, marker_ids);
-        cv::imshow("marker_detection", color);
+        //cv::imshow("marker_detection", color);
+        //cv::imshow("depth",depth);
+        cv::Mat dst;
+        cv::addWeighted(color, 0.5, depth, 0.5, 0.0, dst);
+        cv::imshow("merge",dst);
+
         //cv::namedWindow("color", cv::WINDOW_AUTOSIZE);
         if (cv::waitKey(10) == 27){
             break;
