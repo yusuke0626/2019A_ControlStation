@@ -10,8 +10,8 @@
 bool send_distance(control_station::RsOperator::Request &req ,control_station::RsOperator::Response &res){
     //request_distance.output_distance =  
 } 
-int main(int argc, char **argv)
-{
+int main(int argc, char **argv)try{
+
     ros::init(argc, argv, "realsense_info");
     ros::NodeHandle nh;
 
@@ -24,15 +24,20 @@ int main(int argc, char **argv)
 
     rs2::pipeline pipe;
     rs2::config cfg;
+     cfg.enable_stream(RS2_STREAM_DEPTH);
     cfg.enable_stream(RS2_STREAM_COLOR, 1280, 720, RS2_FORMAT_BGR8, 30);
     pipe.start(cfg);
+
+    rs2::align align_to_depth(RS2_STREAM_DEPTH);
+    rs2::align align_to_color(RS2_STREAM_COLOR);
+
 
      // dictionary生成
     const cv::aruco::PREDEFINED_DICTIONARY_NAME dictionary_name = cv::aruco::DICT_4X4_50;
     cv::Ptr<cv::aruco::Dictionary> dictionary = cv::aruco::getPredefinedDictionary(dictionary_name);
 
 
-    //const auto window_name = "RealSense Image";
+    ///const auto window_name = "RealSense Image";
     //namedWindow(window_name, WINDOW_AUTOSIZE);
     //double pixel_distance_in_meters;
 
@@ -54,11 +59,12 @@ int main(int argc, char **argv)
             for(int i = 0;i < 4; i++){
                 sum_marker_coordinate += marker_corners[cv::aruco::DICT_4X4_50][i].x;
                 //std::cout << marker_corners[cv::aruco::DICT_4X4_50][0].x << std::endl;
-            }
+            } 
+            int center_marker = sum_marker_coordinate / 4;        
+            std::cout << center_marker << std::endl;
+        
         }
-        int center_marker = sum_marker_coordinate / 4;        
-        std::cout << center_marker << std::endl;
-        /*cv::Mat cameraMatrix, distCoeffs;
+       /*cv::Mat cameraMatrix, distCoeffs;
         std::vector <cv::Vec3d> rvecs,tvecs;
         cv::aruco::estimatePoseSingleMarkers(corners,0.05, cameraMatrix,distCoeffs,rvecs,tvecs);*/
         // 検出したマーカーの描画
@@ -73,4 +79,10 @@ int main(int argc, char **argv)
         ros::spinOnce();
     }
     return 0;
+}catch(const rs2::error & e){
+    std::cerr << "Realsense error calling" << e.get_failed_function() << "(" << e.get_failed_args() << "):\n    " << e.what() << std::endl; 
+    return EXIT_FAILURE;
+}catch(const std::exception& e){
+    std::cerr << e.what() << std::endl;
+    return EXIT_FAILURE;
 }
