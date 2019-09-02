@@ -22,7 +22,7 @@ int main(int argc, char **argv)try{
 
     ros::Publisher ros_realsense_pub = nh.advertise<control_station::RsDataMsg>("rs_msg", 1000);
     ros::ServiceServer ros_realsense_srv = nh.advertiseService("rs_srv", send_distance);
-    ros::Rate loop_rate(20);
+    ros::Rate loop_rate(100);
 
     control_station::RsDataMsg msg;
     control_station::RsOperator srv;
@@ -72,7 +72,7 @@ int main(int argc, char **argv)try{
             }
             std::chrono::steady_clock::time_point now_time = std::chrono::steady_clock::now(); 
             std::chrono::milliseconds elapsed_time = std::chrono::duration_cast<std::chrono::milliseconds>(now_time - previous_time);
-            if(elapsed_time.count() > 50){
+            if(elapsed_time.count() > 15){
                 int center_marker_x = sum_marker_coordinate_x / 4; 
                 int center_marker_y = sum_marker_coordinate_y / 4;  
                 double pixel_distance_in_meters = depth_map.get_distance(center_marker_x,center_marker_y);
@@ -80,15 +80,13 @@ int main(int argc, char **argv)try{
                 std::cout << "x:" << center_marker_x << "  y:" << center_marker_y << "  z:" << pixel_distance_in_meters <<std::endl;
             }
         }
-       /*cv::Mat cameraMatrix, distCoeffs;
-        std::vector <cv::Vec3d> rvecs,tvecs;
-        cv::aruco::estimatePoseSingleMarkers(corners,0.05, cameraMatrix,distCoeffs,rvecs,tvecs);*/
+
         // 検出したマーカーの描画
         cv::aruco::drawDetectedMarkers(color, marker_corners, marker_ids);
         //cv::imshow("marker_detection", color);
         //cv::imshow("depth",depth);
         cv::Mat dst;
-        cv::addWeighted(color, 0.8, depth, 0.2, 0.0, dst);
+        cv::addWeighted(color, 0.9, depth, 0.1, 0.0, dst);
         cv::imshow("merge",dst);
 
         //cv::namedWindow("color", cv::WINDOW_AUTOSIZE);
