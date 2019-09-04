@@ -1,7 +1,7 @@
 #include<ros/ros.h>
 #include<iostream>
 #include<chrono>
-#include"cs_connection/RsDataMsg.h"
+#include<cs_connection/RsDataMsg.h>
 #include<opencv2/aruco.hpp>
 #include<opencv2/opencv.hpp>
 #include<librealsense2/rs.hpp>
@@ -27,8 +27,6 @@ int main(int argc, char **argv)try{
     cfg.enable_stream(RS2_STREAM_COLOR, WIDTH, HEIGHT, RS2_FORMAT_BGR8, 30);
     cfg.enable_stream(RS2_STREAM_DEPTH, WIDTH, HEIGHT, RS2_FORMAT_Z16, 30);
     pipe.start(cfg);
-
-    //rs2::align align_to_depth(RS2_STREAM_DEPTH);
     
     rs2::align align_to_color(RS2_STREAM_COLOR);
     rs2::align align_to_depth(RS2_STREAM_DEPTH);
@@ -83,14 +81,13 @@ int main(int argc, char **argv)try{
         //cv::imshow("marker_detection", color);
         //cv::imshow("depth",depth);
         cv::Mat dst;
-        cv::addWeighted(color, 0.9, depth, 0.1, 0.0, dst);
+        cv::addWeighted(color, 0.9, depth, 0.1, 0.0, dst);//Overlay images
         cv::imshow("merge",dst);
 
-        //cv::namedWindow("color", cv::WINDOW_AUTOSIZE);
         if (cv::waitKey(10) == 27){
             break;
         }
-        
+
         loop_rate.sleep();
         ros::spinOnce();
     }
