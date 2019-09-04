@@ -1,8 +1,7 @@
 #include<ros/ros.h>
 #include<iostream>
 #include<chrono>
-#include<control_station/RsDataMsg.h>
-#include<control_station/RsOperator.h>
+#include"cs_connection/RsDataMsg.h"
 #include<opencv2/aruco.hpp>
 #include<opencv2/opencv.hpp>
 #include<librealsense2/rs.hpp>
@@ -16,10 +15,10 @@ int main(int argc, char **argv)try{
     ros::init(argc, argv, "realsense_info");
     ros::NodeHandle nh;
 
-    ros::Publisher ros_realsense_pub = nh.advertise<control_station::RsDataMsg>("rs_msg", 1000);
+    ros::Publisher ros_realsense_pub = nh.advertise<cs_connection::RsDataMsg>("rs_msg", 1000);
     ros::Rate loop_rate(100);
 
-    control_station::RsDataMsg rs_msg;
+    cs_connection::RsDataMsg rs_msg;
 
     rs2::colorizer cr;
 
