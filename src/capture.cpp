@@ -69,9 +69,9 @@ int main(int argc, char **argv)try{
                 double center_marker_y = depth_map.get_distance(center_marker_x,center_marker_z);
                 previous_time = now_time;
                 std::cout << "x:" << center_marker_x << "  z:" << center_marker_z << "  y:" << center_marker_y << std::endl;
-                rs_msg.x_distance = center_marker_x;
+                rs_msg.x_distance = center_marker_x - 640;
                 rs_msg.y_distance = center_marker_y;
-                rs_msg.z_distance = center_marker_z;
+                rs_msg.z_distance = center_marker_z - 360;
                 ros_realsense_pub.publish(rs_msg);
             }
         }
