@@ -18,6 +18,8 @@ int main(int argc, char **argv)try{
     ros::Publisher ros_realsense_pub = nh.advertise<cs_connection::RsDataMsg>("rs_msg", 1000);
     ros::Rate loop_rate(100);
 
+    ROS_INFO("Started control station");
+
     cs_connection::RsDataMsg rs_msg;
 
     rs2::colorizer cr;
@@ -68,7 +70,7 @@ int main(int argc, char **argv)try{
                 int center_marker_z = sum_marker_coordinate_z / 4;  
                 double center_marker_y = depth_map.get_distance(center_marker_x,center_marker_z);
                 previous_time = now_time;
-                std::cout << "x:" << center_marker_x << "  z:" << center_marker_z << "  y:" << center_marker_y << std::endl;
+                ROS_INFO("x:%d  y:%lf  z:%d",center_marker_x,center_marker_y,center_marker_z);
                 rs_msg.x_distance = center_marker_x - 640;
                 rs_msg.y_distance = center_marker_y;
                 rs_msg.z_distance = center_marker_z - 360;
