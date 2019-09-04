@@ -6,9 +6,15 @@
 #include<opencv2/opencv.hpp>
 #include<librealsense2/rs.hpp>
 
+constexpr double PI = 3.1416;
 constexpr std::size_t WIDTH = 1280;
 constexpr std::size_t HEIGHT = 720;
 constexpr double ratio = WIDTH / (double)HEIGHT;
+
+double distance_average(void){
+
+}
+
 
 int main(int argc, char **argv)try{
 
@@ -55,8 +61,9 @@ int main(int argc, char **argv)try{
         cv::Ptr<cv::aruco::DetectorParameters> parameters = cv::aruco::DetectorParameters::create();
         cv::aruco::detectMarkers(color, dictionary, marker_corners , marker_ids, parameters);
 
-        int sum_marker_coordinate_x = 0;
-        int sum_marker_coordinate_z = 0;
+        double sum_marker_coordinate_x = 0;
+        double sum_marker_coordinate_z = 0;
+        double marker_coodinate_y = 0;
 
         if(marker_ids.size() > 0){
             for(int i = 0;i < 4; i++){
@@ -66,14 +73,20 @@ int main(int argc, char **argv)try{
             std::chrono::steady_clock::time_point now_time = std::chrono::steady_clock::now(); 
             std::chrono::milliseconds elapsed_time = std::chrono::duration_cast<std::chrono::milliseconds>(now_time - previous_time);
             if(elapsed_time.count() > 15){
-                int center_marker_x = sum_marker_coordinate_x / 4; 
-                int center_marker_z = sum_marker_coordinate_z / 4;  
-                double center_marker_y = depth_map.get_distance(center_marker_x,center_marker_z);
+                double point_center_marker_x = sum_marker_coordinate_x / 4; 
+                double point_center_marker_z = sum_marker_coordinate_z / 4;
+                
+                double marker_distance = depth_map.get_distance(point_center_marker_x ,point_center_marker_z);
+
+                double distance_sum = marker_distance + distance_sum;
                 previous_time = now_time;
-                ROS_INFO("x:%d  y:%lf  z:%d",center_marker_x,center_marker_y,center_marker_z);
-                rs_msg.x_distance = center_marker_x - 640;
+                double center_marker_x = marker_distance * std::sin(PI / 180.0 * ((46.267 / 1280.0) * (point_center_marker_x - 640.0)));
+                double center_marker_y = marker_distance * std::cos(PI / 180.0 * ((46.267/ 1280.0) * fabs((double)point_center_marker_x - 640.0)));
+                double center_marker_z = marker_distance * std::sin(180.0 / PI * 360.0 / 28.33 * (point_center_marker_z - 360.0)); 
+                ROS_INFO("x:%.3lf  y:%.3lf  z:%.3lf   d:%lf",center_marker_x,center_marker_y,center_marker_z,marker_distance);
+                rs_msg.x_distance = center_marker_x;
                 rs_msg.y_distance = center_marker_y;
-                rs_msg.z_distance = center_marker_z - 360;
+                rs_msg.z_distance = center_marker_z;
                 ros_realsense_pub.publish(rs_msg);
             }
         }
