@@ -1,2 +1,3 @@
-int32 distance
-int32 depth
+int32 x_distance
+float32 y_distance
+int32 z_distance

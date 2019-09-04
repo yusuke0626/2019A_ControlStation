@@ -7,10 +7,6 @@
 #include<opencv2/opencv.hpp>
 #include<librealsense2/rs.hpp>
 
-bool send_distance(control_station::RsOperator::Request &req ,control_station::RsOperator::Response &res){
-    //request_distance.output_distance =  
-} 
-
 constexpr std::size_t WIDTH = 1280;
 constexpr std::size_t HEIGHT = 720;
 constexpr double ratio = WIDTH / (double)HEIGHT;
@@ -21,11 +17,9 @@ int main(int argc, char **argv)try{
     ros::NodeHandle nh;
 
     ros::Publisher ros_realsense_pub = nh.advertise<control_station::RsDataMsg>("rs_msg", 1000);
-    ros::ServiceServer ros_realsense_srv = nh.advertiseService("rs_srv", send_distance);
     ros::Rate loop_rate(100);
 
-    control_station::RsDataMsg msg;
-    control_station::RsOperator srv;
+    control_station::RsDataMsg rs_msg;
 
     rs2::colorizer cr;
 
@@ -63,21 +57,25 @@ int main(int argc, char **argv)try{
         cv::aruco::detectMarkers(color, dictionary, marker_corners , marker_ids, parameters);
 
         int sum_marker_coordinate_x = 0;
-        int sum_marker_coordinate_y = 0;
+        int sum_marker_coordinate_z = 0;
 
         if(marker_ids.size() > 0){
             for(int i = 0;i < 4; i++){
                 sum_marker_coordinate_x += marker_corners[cv::aruco::DICT_4X4_50][i].x;
-                sum_marker_coordinate_y += marker_corners[cv::aruco::DICT_4X4_50][i].y;
+                sum_marker_coordinate_z += marker_corners[cv::aruco::DICT_4X4_50][i].y;
             }
             std::chrono::steady_clock::time_point now_time = std::chrono::steady_clock::now(); 
             std::chrono::milliseconds elapsed_time = std::chrono::duration_cast<std::chrono::milliseconds>(now_time - previous_time);
             if(elapsed_time.count() > 15){
                 int center_marker_x = sum_marker_coordinate_x / 4; 
-                int center_marker_y = sum_marker_coordinate_y / 4;  
-                double pixel_distance_in_meters = depth_map.get_distance(center_marker_x,center_marker_y);
+                int center_marker_z = sum_marker_coordinate_z / 4;  
+                double center_marker_y = depth_map.get_distance(center_marker_x,center_marker_z);
                 previous_time = now_time;
-                std::cout << "x:" << center_marker_x << "  y:" << center_marker_y << "  z:" << pixel_distance_in_meters <<std::endl;
+                std::cout << "x:" << center_marker_x << "  z:" << center_marker_z << "  y:" << center_marker_y << std::endl;
+                rs_msg.x_distance = center_marker_x;
+                rs_msg.y_distance = center_marker_y;
+                rs_msg.z_distance = center_marker_z;
+                ros_realsense_pub.publish(rs_msg);
             }
         }
 
