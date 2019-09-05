@@ -11,10 +11,6 @@ constexpr std::size_t WIDTH = 1280;
 constexpr std::size_t HEIGHT = 720;
 constexpr double ratio = WIDTH / (double)HEIGHT;
 
-double distance_average(void){
-
-}
-
 
 int main(int argc, char **argv)try{
 
@@ -76,7 +72,11 @@ int main(int argc, char **argv)try{
                 double point_center_marker_x = sum_marker_coordinate_x / 4; 
                 double point_center_marker_z = sum_marker_coordinate_z / 4;
                 
-                double marker_distance = depth_map.get_distance(point_center_marker_x ,point_center_marker_z);
+                double marker_distance = (depth_map.get_distance(point_center_marker_x ,point_center_marker_z)
+                                       +  depth_map.get_distance(point_center_marker_x+1 ,point_center_marker_z)
+                                       +  depth_map.get_distance(point_center_marker_x-1 ,point_center_marker_z+1)
+                                       +  depth_map.get_distance(point_center_marker_x ,point_center_marker_z-1)
+                ) / 4.0;
 
                 double distance_sum = marker_distance + distance_sum;
                 previous_time = now_time;
