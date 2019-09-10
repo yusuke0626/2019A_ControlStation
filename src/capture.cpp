@@ -18,7 +18,7 @@ int main(int argc, char **argv)try{
     ros::NodeHandle nh;
 
     ros::Publisher ros_realsense_pub = nh.advertise<cs_connection::RsDataMsg>("rs_msg", 1000);
-    ros::Rate loop_rate(100);
+    ros::Rate loop_rate(20);
 
     ROS_INFO("Started control station");
 
