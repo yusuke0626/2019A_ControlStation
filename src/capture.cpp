@@ -71,14 +71,21 @@ int main(int argc, char **argv)try{
             if(elapsed_time.count() > 15){
                 double point_center_marker_x = sum_marker_coordinate_x / 4; 
                 double point_center_marker_z = sum_marker_coordinate_z / 4;
-                
-                double marker_distance = (depth_map.get_distance(point_center_marker_x ,point_center_marker_z)
-                                       +  depth_map.get_distance(point_center_marker_x+1 ,point_center_marker_z)
-                                       +  depth_map.get_distance(point_center_marker_x-1 ,point_center_marker_z+1)
-                                       +  depth_map.get_distance(point_center_marker_x ,point_center_marker_z-1)
-                ) / 4.0;
 
-                double distance_sum = marker_distance + distance_sum;
+                double marker_distance = 0;
+                double distance_save[5];
+
+                for(int j = 0; j < 5; j++){
+                    distance_save[j] = (depth_map.get_distance(point_center_marker_x ,point_center_marker_z)
+                                     + depth_map.get_distance(point_center_marker_x+1 ,point_center_marker_z)
+                                     + depth_map.get_distance(point_center_marker_x-1 ,point_center_marker_z+1)
+                                     + depth_map.get_distance(point_center_marker_x ,point_center_marker_z-1)
+                                    ) / 4.0;
+                    marker_distance = (marker_distance + distance_save[j]) / j;
+                }
+
+
+                //double distance_sum = marker_distance + distance_sum;
                 previous_time = now_time;
                 double center_marker_x = marker_distance * std::sin(PI / 180.0 * ((46.267 / 1280.0) * (point_center_marker_x - 640.0)));
                 double center_marker_y = marker_distance * std::cos(PI / 180.0 * ((46.267/ 1280.0) * fabs((double)point_center_marker_x - 640.0)));
