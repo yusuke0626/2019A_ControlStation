@@ -32,10 +32,11 @@ int main(int argc, char **argv)try{
     cfg.enable_stream(RS2_STREAM_DEPTH, WIDTH, HEIGHT, RS2_FORMAT_Z16, 30);
     pipe.start(cfg);
     
+    //align    
     rs2::align align_to_color(RS2_STREAM_COLOR);
     rs2::align align_to_depth(RS2_STREAM_DEPTH);
 
-     // dictionary生成
+     // make dictionary
     const cv::aruco::PREDEFINED_DICTIONARY_NAME dictionary_name = cv::aruco::DICT_4X4_50;
     cv::Ptr<cv::aruco::Dictionary> dictionary = cv::aruco::getPredefinedDictionary(dictionary_name);
 
@@ -51,7 +52,8 @@ int main(int argc, char **argv)try{
 
         cv::Mat color(cv::Size(color_map.get_width(),color_map.get_height()), CV_8UC3, (void*)color_map.get_data(), cv::Mat::AUTO_STEP);
         cv::Mat depth(cv::Size(depth_map.get_width(),depth_map.get_height()), CV_8UC3, (void*)colorized_depth.get_data(), cv::Mat::AUTO_STEP);
-       // マーカーの検出
+       
+       // recognize marker 
         std::vector<int> marker_ids;
         std::vector<std::vector<cv::Point2f>> marker_corners;
         cv::Ptr<cv::aruco::DetectorParameters> parameters = cv::aruco::DetectorParameters::create();
@@ -69,19 +71,24 @@ int main(int argc, char **argv)try{
             std::chrono::steady_clock::time_point now_time = std::chrono::steady_clock::now(); 
             std::chrono::milliseconds elapsed_time = std::chrono::duration_cast<std::chrono::milliseconds>(now_time - previous_time);
             if(elapsed_time.count() > 15){
+
                 double point_center_marker_x = sum_marker_coordinate_x / 4; 
                 double point_center_marker_z = sum_marker_coordinate_z / 4;
-
                 double marker_distance = 0;
                 double distance_save[5];
 
                 for(int j = 0; j < 5; j++){
                     distance_save[j] = (depth_map.get_distance(point_center_marker_x ,point_center_marker_z)
                                      + depth_map.get_distance(point_center_marker_x+1 ,point_center_marker_z)
-                                     + depth_map.get_distance(point_center_marker_x-1 ,point_center_marker_z+1)
+                                     + depth_map.get_distance(point_center_marker_x-1 ,point_center_marker_z)
                                      + depth_map.get_distance(point_center_marker_x ,point_center_marker_z-1)
-                                    ) / 4.0;
-                    marker_distance = (marker_distance + distance_save[j]) / j;
+                                     + depth_map.get_distance(point_center_marker_x ,point_center_marker_z+1)
+                                     + depth_map.get_distance(point_center_marker_x-1 ,point_center_marker_z-1)
+                                     + depth_map.get_distance(point_center_marker_x+1 ,point_center_marker_z-1)
+                                     + depth_map.get_distance(point_center_marker_x-1 ,point_center_marker_z+1)
+                                     + depth_map.get_distance(point_center_marker_x+1,point_center_marker_z+1)
+                                    ) / 9.0;
+                    marker_distance = (marker_distance + distance_save[j]) / (j + 1);
                 }
 
 
