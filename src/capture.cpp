@@ -88,9 +88,11 @@ int main(int argc, char **argv)try{
                                      + depth_map.get_distance(point_center_marker_x-1 ,point_center_marker_z+1)
                                      + depth_map.get_distance(point_center_marker_x+1,point_center_marker_z+1)
                                     ) / 9.0;
-                    marker_distance = (marker_distance + distance_save[j]) / (j + 1);
+                    marker_distance = marker_distance + distance_save[j];
+                    //std::cout << marker_distance << std::endl;
                 }
 
+                marker_distance = marker_distance / 5;
 
                 //double distance_sum = marker_distance + distance_sum;
                 previous_time = now_time;
