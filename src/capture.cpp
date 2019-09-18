@@ -74,6 +74,7 @@ int main(int argc, char **argv)try{
 
                 double point_center_marker_x = sum_marker_coordinate_x / 4; 
                 double point_center_marker_z = sum_marker_coordinate_z / 4;
+                std::cout << point_center_marker_x << std::endl;
                 double marker_distance = 0;
                 double distance_save[5];
 
@@ -96,8 +97,8 @@ int main(int argc, char **argv)try{
 
                 //double distance_sum = marker_distance + distance_sum;
                 previous_time = now_time;
-                double center_marker_x = marker_distance * std::sin(PI / 180.0 * ((46.267 / 1280.0) * (point_center_marker_x - 640.0)));
-                double center_marker_y = marker_distance * std::cos(PI / 180.0 * ((46.267/ 1280.0) * fabs((double)point_center_marker_x - 640.0)));
+                double center_marker_x = marker_distance * std::sin(PI / 180.0 * ((69.4 / 896.0) * (point_center_marker_x - 640.0)));
+                double center_marker_y = marker_distance * std::cos(PI / 180.0 * ((69.4 / 896.0) * fabs((double)point_center_marker_x - 640.0)));
                 double center_marker_z = marker_distance * std::sin(180.0 / PI * 360.0 / 28.33 * (point_center_marker_z - 360.0)); 
                 ROS_INFO("x:%.3lf  y:%.3lf  z:%.3lf   d:%lf",center_marker_x,center_marker_y,center_marker_z,marker_distance);
                 rs_msg.x_distance = center_marker_x;
