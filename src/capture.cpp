@@ -44,7 +44,7 @@ int main(int argc, char **argv)try{
     while(true){
         rs2::frameset frames = pipe.wait_for_frames();
         //rs2::depth_frame depth_point = frames.get_depth_frame;
-        auto aligned_frames = align_to_depth.process(frames);
+        auto aligned_frames = align_to_color.process(frames);//depth
 
         auto depth_map = aligned_frames.get_depth_frame();
         auto color_map = aligned_frames.get_color_frame();
@@ -53,6 +53,7 @@ int main(int argc, char **argv)try{
         cv::Mat color(cv::Size(color_map.get_width(),color_map.get_height()), CV_8UC3, (void*)color_map.get_data(), cv::Mat::AUTO_STEP);
         cv::Mat depth(cv::Size(depth_map.get_width(),depth_map.get_height()), CV_8UC3, (void*)colorized_depth.get_data(), cv::Mat::AUTO_STEP);
        
+        //cv::imshow("ss",color);
        // recognize marker 
         std::vector<int> marker_ids;
         std::vector<std::vector<cv::Point2f>> marker_corners;
@@ -97,8 +98,8 @@ int main(int argc, char **argv)try{
 
                 //double distance_sum = marker_distance + distance_sum;
                 previous_time = now_time;
-                double center_marker_x = marker_distance * std::sin(PI / 180.0 * ((69.4 / 896.0) * (point_center_marker_x - 640.0)));
-                double center_marker_y = marker_distance * std::cos(PI / 180.0 * ((69.4 / 896.0) * fabs((double)point_center_marker_x - 640.0)));
+                double center_marker_x = marker_distance * std::tan(PI / 180.0 * ((69.4 / 1280/*896.0*/) * (point_center_marker_x /*- 640.0*/) - 2.8));
+                double center_marker_y = marker_distance;
                 double center_marker_z = marker_distance * std::sin(180.0 / PI * 360.0 / 28.33 * (point_center_marker_z - 360.0)); 
                 ROS_INFO("x:%.3lf  y:%.3lf  z:%.3lf   d:%lf",center_marker_x,center_marker_y,center_marker_z,marker_distance);
                 rs_msg.x_distance = center_marker_x;
@@ -115,6 +116,7 @@ int main(int argc, char **argv)try{
         cv::Mat dst;
         cv::addWeighted(color, 0.9, depth, 0.1, 0.0, dst);//Overlay images
         cv::imshow("merge",dst);
+        //cv::imshow("color",color);
 
         if (cv::waitKey(10) == 27){
             break;
