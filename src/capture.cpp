@@ -1,19 +1,18 @@
-#include<ros/ros.h>
-#include<iostream>
-#include<chrono>
-#include<cs_connection/RsDataMsg.h>
-#include<opencv2/aruco.hpp>
-#include<opencv2/opencv.hpp>
-#include<librealsense2/rs.hpp>
-#include<librealsense2/rsutil.h>
+#include <ros/ros.h>
+#include <iostream>
+#include <chrono>
+#include <cs_connection/RsDataMsg.h>
+#include <opencv2/aruco.hpp>
+#include <opencv2/opencv.hpp>
+#include <librealsense2/rs.hpp>
+#include <librealsense2/rsutil.h>
 constexpr double PI = 3.1416;
 constexpr std::size_t WIDTH = 1280;
 constexpr std::size_t HEIGHT = 720;
 constexpr double ratio = WIDTH / (double)HEIGHT;
 
-
-
-int main(int argc, char **argv)try{
+int main(int argc, char **argv) try
+{
 
     ros::init(argc, argv, "realsense_info");
     ros::NodeHandle nh;
@@ -27,25 +26,24 @@ int main(int argc, char **argv)try{
 
     rs2::colorizer cr;
 
-    
     rs2::config cfg;
     cfg.enable_stream(RS2_STREAM_COLOR, WIDTH, HEIGHT, RS2_FORMAT_BGR8, 30);
     cfg.enable_stream(RS2_STREAM_DEPTH, WIDTH, HEIGHT, RS2_FORMAT_Z16, 30);
     rs2::pipeline pipe;
     auto profile = pipe.start(cfg);
     auto depth_stream = profile.get_stream(RS2_STREAM_COLOR).as<rs2::video_stream_profile>();
-    
-    
-   // rs2::align align_to_depth(RS2_STREAM_DEPTH);
+
+    // rs2::align align_to_depth(RS2_STREAM_DEPTH);
 
     auto intr = depth_stream.get_intrinsics();
-   
-     // dictionary生成
+
+    // dictionary生成
     const cv::aruco::PREDEFINED_DICTIONARY_NAME dictionary_name = cv::aruco::DICT_4X4_50;
     cv::Ptr<cv::aruco::Dictionary> dictionary = cv::aruco::getPredefinedDictionary(dictionary_name);
 
     std::chrono::steady_clock::time_point previous_time = std::chrono::steady_clock::now();
-    while(true){
+    while (true)
+    {
         rs2::frameset frames = pipe.wait_for_frames();
         //rs2::depth_frame depth_point = frames.get_depth_frame;
         rs2::align align_to_color(RS2_STREAM_COLOR);
@@ -54,44 +52,50 @@ int main(int argc, char **argv)try{
         auto color_map = aligned_frames.get_color_frame();
         auto colorized_depth = cr.colorize(depth_map);
 
-        cv::Mat color(cv::Size(color_map.get_width(),color_map.get_height()), CV_8UC3, (void*)color_map.get_data(), cv::Mat::AUTO_STEP);
-        cv::Mat depth(cv::Size(depth_map.get_width(),depth_map.get_height()), CV_8UC3, (void*)colorized_depth.get_data(), cv::Mat::AUTO_STEP);
-       // マーカーの検出
+        cv::Mat color(cv::Size(color_map.get_width(), color_map.get_height()), CV_8UC3, (void *)color_map.get_data(), cv::Mat::AUTO_STEP);
+        cv::Mat depth(cv::Size(depth_map.get_width(), depth_map.get_height()), CV_8UC3, (void *)colorized_depth.get_data(), cv::Mat::AUTO_STEP);
+        // マーカーの検出
         std::vector<int> marker_ids;
         std::vector<std::vector<cv::Point2f>> marker_corners;
         cv::Ptr<cv::aruco::DetectorParameters> parameters = cv::aruco::DetectorParameters::create();
-        cv::aruco::detectMarkers(color, dictionary, marker_corners , marker_ids, parameters);
+        cv::aruco::detectMarkers(color, dictionary, marker_corners, marker_ids, parameters);
 
         float sum_marker_coordinate_x = 0;
         float sum_marker_coordinate_z = 0;
         float marker_coodinate_y = 0;
 
-        if(marker_ids.size() > 0){
-            for(int i = 0;i < 4; i++){
-                sum_marker_coordinate_x += marker_corners[cv::aruco::DICT_4X4_50][i].x;
-                sum_marker_coordinate_z += marker_corners[cv::aruco::DICT_4X4_50][i].y;
+        //int& mc_size = marker_ids[1];
+        //std::cout << "id" << marker_ids[1] << std::endl;
+        if (marker_ids.size() > 0 && marker_ids.size() < 2)
+        {
+            if (marker_ids[0] == 0)
+            {
+                for (int i = 0; i < 4; i++)
+                {
+                    sum_marker_coordinate_x += marker_corners[cv::aruco::DICT_4X4_50][i].x;
+                    // std::cout << "x:"<< marker_corners[cv::aruco::DICT_4X4_50][i].x << std::endl;
+                    sum_marker_coordinate_z += marker_corners[cv::aruco::DICT_4X4_50][i].y;
+                    // std::cout << "y:"<< marker_corners[cv::aruco::DICT_4X4_50][i].y << std::endl;
+                }
             }
 
-
-            std::chrono::steady_clock::time_point now_time = std::chrono::steady_clock::now(); 
+            std::chrono::steady_clock::time_point now_time = std::chrono::steady_clock::now();
             std::chrono::milliseconds elapsed_time = std::chrono::duration_cast<std::chrono::milliseconds>(now_time - previous_time);
-            if(elapsed_time.count() > 15){
-                float point_center_marker_x = sum_marker_coordinate_x / 4; 
+            if (elapsed_time.count() > 15)
+            {
+                float point_center_marker_x = sum_marker_coordinate_x / 4;
                 float point_center_marker_z = sum_marker_coordinate_z / 4;
 
                 float marker_distance = 0;
                 float distance_save[5];
 
-                for(int j = 0; j < 5; j++){
-                    distance_save[j] = (depth_map.get_distance(point_center_marker_x ,point_center_marker_z)
-                                     + depth_map.get_distance(point_center_marker_x+1 ,point_center_marker_z)
-                                     + depth_map.get_distance(point_center_marker_x-1 ,point_center_marker_z+1)
-                                     + depth_map.get_distance(point_center_marker_x ,point_center_marker_z-1)
-                                    ) / 4.0;
+                for (int j = 0; j < 5; j++)
+                {
+                    distance_save[j] = (depth_map.get_distance(point_center_marker_x, point_center_marker_z) + depth_map.get_distance(point_center_marker_x + 1, point_center_marker_z) + depth_map.get_distance(point_center_marker_x - 1, point_center_marker_z + 1) + depth_map.get_distance(point_center_marker_x, point_center_marker_z - 1)) / 4.0;
                 }
                 marker_distance = (distance_save[0] + distance_save[1] + distance_save[2] + distance_save[3] + distance_save[4]) / 5;
-                float point[3] = {0,0,0};
-                float pixel[2] = {0,0};
+                float point[3] = {0, 0, 0};
+                float pixel[2] = {0, 0};
                 pixel[0] = point_center_marker_x;
                 pixel[1] = point_center_marker_z;
                 rs2_deproject_pixel_to_point(point, &intr, pixel, marker_distance);
@@ -99,9 +103,9 @@ int main(int argc, char **argv)try{
                 //double distance_sum = marker_distance + distance_sum;
                 previous_time = now_time;
                 float center_marker_x = point[0]; //marker_distance * std::sin(PI / 180.0 * ((46.267 / 1280.0) * (point_center_marker_x - 640.0)));
-                float center_marker_y = point[2];//marker_distance * std::cos(PI / 180.0 * ((46.267/ 1280.0) * fabs((double)point_center_marker_x - 640.0)));
-                float center_marker_z = point[1];//marker_distance * std::sin(180.0 / PI * 360.0 / 28.33 * (point_center_marker_z - 360.0)); 
-                ROS_INFO("x:%f  y:%f  z:%f   d:%f",point[0],point[2],point[1],marker_distance);
+                float center_marker_y = point[2]; //marker_distance * std::cos(PI / 180.0 * ((46.267/ 1280.0) * fabs((double)point_center_marker_x - 640.0)));
+                float center_marker_z = point[1]; //marker_distance * std::sin(180.0 / PI * 360.0 / 28.33 * (point_center_marker_z - 360.0));
+                ROS_INFO("x:%f  y:%f  z:%f   d:%f", point[0], point[2], point[1], marker_distance);
                 rs_msg.x_distance = center_marker_x;
                 rs_msg.y_distance = center_marker_y;
                 rs_msg.z_distance = center_marker_z;
@@ -114,10 +118,11 @@ int main(int argc, char **argv)try{
         //cv::imshow("marker_detection", color);
         //cv::imshow("depth",depth);
         cv::Mat dst;
-        cv::addWeighted(color, 0.9, depth, 0.1, 0.0, dst);//Overlay images
-        cv::imshow("merge",dst);
+        cv::addWeighted(color, 0.9, depth, 0.1, 0.0, dst); //Overlay images
+        cv::imshow("merge", dst);
 
-        if (cv::waitKey(10) == 27){
+        if (cv::waitKey(10) == 27)
+        {
             break;
         }
 
@@ -125,10 +130,14 @@ int main(int argc, char **argv)try{
         ros::spinOnce();
     }
     return 0;
-}catch(const rs2::error & e){
-    std::cerr << "Realsense error calling" << e.get_failed_function() << "(" << e.get_failed_args() << "):\n    " << e.what() << std::endl; 
+}
+catch (const rs2::error &e)
+{
+    std::cerr << "Realsense error calling" << e.get_failed_function() << "(" << e.get_failed_args() << "):\n    " << e.what() << std::endl;
     return EXIT_FAILURE;
-}catch(const std::exception& e){
+}
+catch (const std::exception &e)
+{
     std::cerr << e.what() << std::endl;
     return EXIT_FAILURE;
 }
