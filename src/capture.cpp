@@ -18,7 +18,7 @@ int main(int argc, char **argv) try
     ros::NodeHandle nh;
 
     ros::Publisher ros_realsense_pub = nh.advertise<cs_connection::RsDataMsg>("rs_msg", 1000);
-    ros::Rate loop_rate(20);
+    ros::Rate loop_rate(100);
 
     ROS_INFO("Started control station");
 
@@ -64,64 +64,62 @@ int main(int argc, char **argv) try
         float sum_marker_coordinate_z = 0;
         float marker_coodinate_y = 0;
 
-        //int& mc_size = marker_ids[1];
-        //std::cout << "id" << marker_ids[1] << std::endl;
         if (marker_ids.size() > 0 && marker_ids.size() < 2)
         {
+            int mc_0 = marker_ids.at(0);
+//            std::cout << "id:" << mc_0 << std::endl;
+
             if (marker_ids[0] == 0)
             {
                 for (int i = 0; i < 4; i++)
                 {
-                    sum_marker_coordinate_x += marker_corners[cv::aruco::DICT_4X4_50][i].x;
-                    // std::cout << "x:"<< marker_corners[cv::aruco::DICT_4X4_50][i].x << std::endl;
-                    sum_marker_coordinate_z += marker_corners[cv::aruco::DICT_4X4_50][i].y;
-                    // std::cout << "y:"<< marker_corners[cv::aruco::DICT_4X4_50][i].y << std::endl;
+                    sum_marker_coordinate_x += marker_corners[0][i].x;
+                    sum_marker_coordinate_z += marker_corners[0][i].y;
                 }
-            }
 
-            std::chrono::steady_clock::time_point now_time = std::chrono::steady_clock::now();
-            std::chrono::milliseconds elapsed_time = std::chrono::duration_cast<std::chrono::milliseconds>(now_time - previous_time);
-            if (elapsed_time.count() > 15)
-            {
-                float point_center_marker_x = sum_marker_coordinate_x / 4;
-                float point_center_marker_z = sum_marker_coordinate_z / 4;
-
-                float marker_distance = 0;
-                float distance_save[5];
-
-                for (int j = 0; j < 5; j++)
+                std::chrono::steady_clock::time_point now_time = std::chrono::steady_clock::now();
+                std::chrono::milliseconds elapsed_time = std::chrono::duration_cast<std::chrono::milliseconds>(now_time - previous_time);
+                if (elapsed_time.count() > 15)
                 {
-                    distance_save[j] = (depth_map.get_distance(point_center_marker_x, point_center_marker_z) + depth_map.get_distance(point_center_marker_x + 1, point_center_marker_z) + depth_map.get_distance(point_center_marker_x - 1, point_center_marker_z + 1) + depth_map.get_distance(point_center_marker_x, point_center_marker_z - 1)) / 4.0;
-                }
-                marker_distance = (distance_save[0] + distance_save[1] + distance_save[2] + distance_save[3] + distance_save[4]) / 5;
-                float point[3] = {0, 0, 0};
-                float pixel[2] = {0, 0};
-                pixel[0] = point_center_marker_x;
-                pixel[1] = point_center_marker_z;
-                rs2_deproject_pixel_to_point(point, &intr, pixel, marker_distance);
+                    float point_center_marker_x = sum_marker_coordinate_x / 4;
+                    float point_center_marker_z = sum_marker_coordinate_z / 4;
 
-                //double distance_sum = marker_distance + distance_sum;
-                previous_time = now_time;
-                float center_marker_x = point[0]; //marker_distance * std::sin(PI / 180.0 * ((46.267 / 1280.0) * (point_center_marker_x - 640.0)));
-                float center_marker_y = point[2]; //marker_distance * std::cos(PI / 180.0 * ((46.267/ 1280.0) * fabs((double)point_center_marker_x - 640.0)));
-                float center_marker_z = point[1]; //marker_distance * std::sin(180.0 / PI * 360.0 / 28.33 * (point_center_marker_z - 360.0));
-                ROS_INFO("x:%f  y:%f  z:%f   d:%f", point[0], point[2], point[1], marker_distance);
-                rs_msg.x_distance = center_marker_x;
-                rs_msg.y_distance = center_marker_y;
-                rs_msg.z_distance = center_marker_z;
-                ros_realsense_pub.publish(rs_msg);
+                    float marker_distance = 0;
+                    float distance_save[5];
+
+                    for (int j = 0; j < 5; j++)
+                    {
+                        distance_save[j] = (depth_map.get_distance(point_center_marker_x, point_center_marker_z) + depth_map.get_distance(point_center_marker_x + 1, point_center_marker_z) + depth_map.get_distance(point_center_marker_x - 1, point_center_marker_z + 1) + depth_map.get_distance(point_center_marker_x, point_center_marker_z - 1)) / 4.0;
+                    }
+                    marker_distance = (distance_save[0] + distance_save[1] + distance_save[2] + distance_save[3] + distance_save[4]) / 5;
+                    float point[3] = {0, 0, 0};
+                    float pixel[2] = {0, 0};
+                    pixel[0] = point_center_marker_x;
+                    pixel[1] = point_center_marker_z;
+                    rs2_deproject_pixel_to_point(point, &intr, pixel, marker_distance);
+                    //double distance_sum = marker_distance + distance_sum;
+                    previous_time = now_time;
+                    float center_marker_x = point[0] * 1000; //marker_distance * std::sin(PI / 180.0 * ((46.267 / 1280.0) * (point_center_marker_x - 640.0)));
+                    float center_marker_y = point[2] * 1000; //marker_distance * std::cos(PI / 180.0 * ((46.267/ 1280.0) * fabs((double)point_center_marker_x - 640.0)));
+                    float center_marker_z = point[1] * 1000; //marker_distance * std::sin(180.0 / PI * 360.0 / 28.33 * (point_center_marker_z - 360.0));
+                    ROS_INFO("x:%f  y:%f  z:%f   d:%f", center_marker_x, center_marker_y, center_marker_z, marker_distance);
+                    rs_msg.x_distance = center_marker_x;
+                    rs_msg.y_distance = center_marker_y;
+                    rs_msg.z_distance = center_marker_z;
+                    ros_realsense_pub.publish(rs_msg);
+                }
             }
         }
 
         // 検出したマーカーの描画
         cv::aruco::drawDetectedMarkers(color, marker_corners, marker_ids);
-        //cv::imshow("marker_detection", color);
+          //cv::imshow("marker_detection", color);
         //cv::imshow("depth",depth);
         cv::Mat dst;
         cv::addWeighted(color, 0.9, depth, 0.1, 0.0, dst); //Overlay images
         cv::imshow("merge", dst);
 
-        if (cv::waitKey(10) == 27)
+        if (cv::waitKey(5) == 27)
         {
             break;
         }
