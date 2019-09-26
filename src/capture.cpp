@@ -6,7 +6,7 @@
 #include <opencv2/opencv.hpp>
 #include <librealsense2/rs.hpp>
 #include <librealsense2/rsutil.h>
-constexpr double PI = 3.1416;
+
 constexpr std::size_t WIDTH = 1280;
 constexpr std::size_t HEIGHT = 720;
 constexpr double ratio = WIDTH / (double)HEIGHT;
@@ -24,7 +24,7 @@ int main(int argc, char **argv) try
 
     cs_connection::RsDataMsg rs_msg;
 
-    rs2::colorizer cr;
+    //rs2::colorizer cr;
 
     rs2::config cfg;
     cfg.enable_stream(RS2_STREAM_COLOR, WIDTH, HEIGHT, RS2_FORMAT_BGR8, 30);
@@ -40,20 +40,29 @@ int main(int argc, char **argv) try
     // dictionary生成
     const cv::aruco::PREDEFINED_DICTIONARY_NAME dictionary_name = cv::aruco::DICT_4X4_50;
     cv::Ptr<cv::aruco::Dictionary> dictionary = cv::aruco::getPredefinedDictionary(dictionary_name);
-
     std::chrono::steady_clock::time_point previous_time = std::chrono::steady_clock::now();
+
+    float distance_save[5] {0,0,0,0,0};
+    short count = 0;
+    short start_count = 0;
     while (true)
     {
+        start_count = start_count + 1;
+        distance_save[0] = distance_save[1];
+        distance_save[1] = distance_save[2];
+        distance_save[2] = distance_save[3];
+        distance_save[3] = distance_save[4];
+        
         rs2::frameset frames = pipe.wait_for_frames();
         //rs2::depth_frame depth_point = frames.get_depth_frame;
         rs2::align align_to_color(RS2_STREAM_COLOR);
         auto aligned_frames = align_to_color.process(frames);
         auto depth_map = aligned_frames.get_depth_frame();
         auto color_map = aligned_frames.get_color_frame();
-        auto colorized_depth = cr.colorize(depth_map);
+//        auto colorized_depth = cr.colorize(depth_map);
 
         cv::Mat color(cv::Size(color_map.get_width(), color_map.get_height()), CV_8UC3, (void *)color_map.get_data(), cv::Mat::AUTO_STEP);
-        cv::Mat depth(cv::Size(depth_map.get_width(), depth_map.get_height()), CV_8UC3, (void *)colorized_depth.get_data(), cv::Mat::AUTO_STEP);
+//        cv::Mat depth(cv::Size(depth_map.get_width(), depth_map.get_height()), CV_8UC3, (void *)colorized_depth.get_data(), cv::Mat::AUTO_STEP);
         // マーカーの検出
         std::vector<int> marker_ids;
         std::vector<std::vector<cv::Point2f>> marker_corners;
@@ -64,12 +73,9 @@ int main(int argc, char **argv) try
         float sum_marker_coordinate_z = 0;
         float marker_coodinate_y = 0;
 
-        if (marker_ids.size() > 0 && marker_ids.size() < 2)
+        if (marker_ids.size() > 0 && marker_ids.size() < 4)
         {
-            int mc_0 = marker_ids.at(0);
-//            std::cout << "id:" << mc_0 << std::endl;
-
-            if (marker_ids[0] == 0)
+            if (marker_ids.at(0) == 0)
             {
                 for (int i = 0; i < 4; i++)
                 {
@@ -85,43 +91,44 @@ int main(int argc, char **argv) try
                     float point_center_marker_z = sum_marker_coordinate_z / 4;
 
                     float marker_distance = 0;
-                    float distance_save[5];
 
-                    for (int j = 0; j < 5; j++)
-                    {
-                        distance_save[j] = (depth_map.get_distance(point_center_marker_x, point_center_marker_z) + depth_map.get_distance(point_center_marker_x + 1, point_center_marker_z) + depth_map.get_distance(point_center_marker_x - 1, point_center_marker_z + 1) + depth_map.get_distance(point_center_marker_x, point_center_marker_z - 1)) / 4.0;
+                    distance_save[4] = (depth_map.get_distance(point_center_marker_x, point_center_marker_z) + depth_map.get_distance(point_center_marker_x + 1, point_center_marker_z) + depth_map.get_distance(point_center_marker_x - 1, point_center_marker_z) + depth_map.get_distance(point_center_marker_x, point_center_marker_z - 1) + depth_map.get_distance(point_center_marker_x, point_center_marker_z + 1))  / 5.0;
+                    start_count++;                    
+                    if(start_count > 8){
+                        marker_distance = (distance_save[0] + distance_save[1] + distance_save[2] + distance_save[3] + distance_save[4]) / 5;
+                        start_count = 8;
+                        float point[3] = {0, 0, 0};
+                        float pixel[2] = {0, 0};
+                        pixel[0] = point_center_marker_x;
+                        pixel[1] = point_center_marker_z;
+                        rs2_deproject_pixel_to_point(point, &intr, pixel, marker_distance);
+                        //double distance_sum = marker_distance + distance_sum;
+                        previous_time = now_time;
+                        float center_marker_x = point[0] * 1000; 
+                        float center_marker_y = point[2] * 1000; 
+                        float center_marker_z = point[1] * 1000; 
+                        ROS_INFO("x:%f  y:%f  z:%f   d:%f", center_marker_x, center_marker_y, center_marker_z, marker_distance);
+                        rs_msg.x_distance = center_marker_x;
+                        rs_msg.y_distance = center_marker_y;
+                        rs_msg.z_distance = center_marker_z;
+                        ros_realsense_pub.publish(rs_msg);
                     }
-                    marker_distance = (distance_save[0] + distance_save[1] + distance_save[2] + distance_save[3] + distance_save[4]) / 5;
-                    float point[3] = {0, 0, 0};
-                    float pixel[2] = {0, 0};
-                    pixel[0] = point_center_marker_x;
-                    pixel[1] = point_center_marker_z;
-                    rs2_deproject_pixel_to_point(point, &intr, pixel, marker_distance);
-                    //double distance_sum = marker_distance + distance_sum;
-                    previous_time = now_time;
-                    float center_marker_x = point[0] * 1000; //marker_distance * std::sin(PI / 180.0 * ((46.267 / 1280.0) * (point_center_marker_x - 640.0)));
-                    float center_marker_y = point[2] * 1000; //marker_distance * std::cos(PI / 180.0 * ((46.267/ 1280.0) * fabs((double)point_center_marker_x - 640.0)));
-                    float center_marker_z = point[1] * 1000; //marker_distance * std::sin(180.0 / PI * 360.0 / 28.33 * (point_center_marker_z - 360.0));
-                    ROS_INFO("x:%f  y:%f  z:%f   d:%f", center_marker_x, center_marker_y, center_marker_z, marker_distance);
-                    rs_msg.x_distance = center_marker_x;
-                    rs_msg.y_distance = center_marker_y;
-                    rs_msg.z_distance = center_marker_z;
-                    ros_realsense_pub.publish(rs_msg);
                 }
             }
         }
 
         // 検出したマーカーの描画
         cv::aruco::drawDetectedMarkers(color, marker_corners, marker_ids);
-          //cv::imshow("marker_detection", color);
-        //cv::imshow("depth",depth);
-        cv::Mat dst;
-        cv::addWeighted(color, 0.9, depth, 0.1, 0.0, dst); //Overlay images
-        cv::imshow("merge", dst);
+        cv::imshow("marker_detection", color);
 
         if (cv::waitKey(5) == 27)
         {
             break;
+        }   
+        
+        count = count + 1;
+        if(count > 5){
+            count = 0;
         }
 
         loop_rate.sleep();
