@@ -1,11 +1,14 @@
 #include <ros/ros.h>
 #include <iostream>
 #include <chrono>
+#include <ctime>
 #include <cs_connection/RsDataMsg.h>
 #include <opencv2/aruco.hpp>
 #include <opencv2/opencv.hpp>
 #include <librealsense2/rs.hpp>
 #include <librealsense2/rsutil.h>
+#include <sstream>
+#include <fstream>
 
 constexpr std::size_t WIDTH = 1280;
 constexpr std::size_t HEIGHT = 720;
@@ -42,11 +45,30 @@ int main(int argc, char **argv) try
     cv::Ptr<cv::aruco::Dictionary> dictionary = cv::aruco::getPredefinedDictionary(dictionary_name);
     std::chrono::steady_clock::time_point previous_time = std::chrono::steady_clock::now();
 
+   // cv::Mat cameraMatrix, distCoeffs;
+    
     float distance_save[5] {0,0,0,0,0};
     short count = 0;
     short start_count = 0;
+    int numbering = 0;
+    //std::time_t 
+    std::ostringstream video_name,record_name;
+    auto real_time = std::chrono::system_clock::now(); 
+    std::time_t sys_time = std::chrono::system_clock::to_time_t(real_time);
+    
+    std::ofstream log;
+    record_name << std::ctime(&sys_time) << ".csv" << std::flush;
+    const std::string tmp_name = record_name.str();
+    const char* char_to_record_name = tmp_name.c_str();
+    log.open(char_to_record_name);
+
+    video_name << std::ctime(&sys_time) << ".mp4" << std::flush;
+    cv::VideoWriter::fourcc('M', 'P', '4', 'S');
+    cv::VideoWriter writer(video_name.str(),cv::VideoWriter::fourcc('M', 'P', '4', 'S'), 8.0, cv::Size(WIDTH,HEIGHT));
+
     while (true)
     {
+        
         start_count = start_count + 1;
         distance_save[0] = distance_save[1];
         distance_save[1] = distance_save[2];
@@ -68,6 +90,8 @@ int main(int argc, char **argv) try
         std::vector<std::vector<cv::Point2f>> marker_corners;
         cv::Ptr<cv::aruco::DetectorParameters> parameters = cv::aruco::DetectorParameters::create();
         cv::aruco::detectMarkers(color, dictionary, marker_corners, marker_ids, parameters);
+//        std::vector< cv::Vec3d > rvecs, tvecs;
+//        cv::aruco::estimatePoseSingleMarkers(marker_corners, 0.05, cameraMatrix, distCoeffs, rvecs, tvecs);
 
         float sum_marker_coordinate_x = 0;
         float sum_marker_coordinate_z = 0;
@@ -107,6 +131,7 @@ int main(int argc, char **argv) try
                         float center_marker_x = point[0] * 1000; 
                         float center_marker_y = point[2] * 1000; 
                         float center_marker_z = point[1] * 1000; 
+                        log << center_marker_x << "," << center_marker_y << "," << center_marker_z << std::endl;
                         ROS_INFO("x:%f  y:%f  z:%f   d:%f", center_marker_x, center_marker_y, center_marker_z, marker_distance);
                         rs_msg.x_distance = center_marker_x;
                         rs_msg.y_distance = center_marker_y;
@@ -118,11 +143,22 @@ int main(int argc, char **argv) try
         }
 
         // 検出したマーカーの描画
-        cv::aruco::drawDetectedMarkers(color, marker_corners, marker_ids);
-        cv::imshow("marker_detection", color);
-
-        if (cv::waitKey(5) == 27)
-        {
+//        cv::aruco::drawDetectedMarkers(color, marker_corners, marker_ids);
+       // cv::aruco::drawAxis(color, cameraMatrix, distCoeffs, rvecs, tvecs, 0.1);
+        cv::Mat line_in = color;
+        cv::line(line_in,cv::Point(340,240),cv::Point(940,240), cv::Scalar(255,100,100), 5, 16);
+                
+        cv::imshow("marker_detection", line_in);
+        writer << color;
+        int key = cv::waitKey(10); 
+        if(key == 115){
+            //cv::imwrite("data.png", color);
+            std::cout << "cap" << std::endl;
+            numbering++;
+            std::ostringstream picture_name;
+            picture_name << "data" << numbering  << ".png "<< std::flush;
+            cv::imwrite(picture_name.str(), color);
+        }else if (key == 27){
             break;
         }   
         
@@ -134,6 +170,7 @@ int main(int argc, char **argv) try
         loop_rate.sleep();
         ros::spinOnce();
     }
+    log.close();
     return 0;
 }
 catch (const rs2::error &e)
