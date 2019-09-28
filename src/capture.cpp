@@ -13,6 +13,8 @@
 constexpr std::size_t WIDTH = 1280;
 constexpr std::size_t HEIGHT = 720;
 constexpr double ratio = WIDTH / (double)HEIGHT;
+constexpr bool apply_hole_filter = true;
+constexpr short hole_fillter_mode = 1;
 
 int main(int argc, char **argv) try
 {
@@ -35,7 +37,7 @@ int main(int argc, char **argv) try
     rs2::pipeline pipe;
     auto profile = pipe.start(cfg);
     auto depth_stream = profile.get_stream(RS2_STREAM_COLOR).as<rs2::video_stream_profile>();
-
+    rs2::hole_filling_filter hole_filling(hole_fillter_mode);
     // rs2::align align_to_depth(RS2_STREAM_DEPTH);
 
     auto intr = depth_stream.get_intrinsics();
@@ -66,6 +68,37 @@ int main(int argc, char **argv) try
     cv::VideoWriter::fourcc('M', 'P', '4', 'S');
     cv::VideoWriter writer(video_name.str(),cv::VideoWriter::fourcc('M', 'P', '4', 'S'), 8.0, cv::Size(WIDTH,HEIGHT));
 
+    while(true){
+        float dist_left_base,dist_right_base;
+
+        rs2::frameset frames = pipe.wait_for_frames();
+        rs2::align align_to_color(RS2_STREAM_COLOR);
+        auto aligned_frames = align_to_color.process(frames);
+        auto depth_map = aligned_frames.get_depth_frame();
+        auto color_map = aligned_frames.get_color_frame();
+        if (apply_hole_filter) {
+            depth_map = hole_filling.process(depth_map);
+        }
+
+        cv::Mat color(cv::Size(color_map.get_width(), color_map.get_height()), CV_8UC3, (void *)color_map.get_data(), cv::Mat::AUTO_STEP);
+        dist_left_base = depth_map.get_distance(280,540);
+        dist_right_base = depth_map.get_distance(1000,540);
+        float diff_base_distance = dist_left_base - dist_right_base;
+        cv::line(color,cv::Point(280,540),cv::Point(280,540), cv::Scalar(255,225,100), 10, 16);
+        cv::line(color,cv::Point(1000,540),cv::Point(1000,540), cv::Scalar(255,225,100), 10, 16);
+        cv::line(color,cv::Point(340,240),cv::Point(940,240), cv::Scalar(255,225,100), 5, 16);
+        if(diff_base_distance < 3){
+            std::cout << diff_base_distance * 1000 << std::endl;
+        }
+        cv::imshow("set",color);
+        //depth_map.get_distance()
+//      
+        if(cv::waitKey(10) == 116){
+            cv::destroyAllWindows();
+            break;
+        }
+    }
+
     while (true)
     {
         
@@ -81,6 +114,9 @@ int main(int argc, char **argv) try
         auto aligned_frames = align_to_color.process(frames);
         auto depth_map = aligned_frames.get_depth_frame();
         auto color_map = aligned_frames.get_color_frame();
+         if (apply_hole_filter) {
+            depth_map = hole_filling.process(depth_map);
+        }
 //        auto colorized_depth = cr.colorize(depth_map);
 
         cv::Mat color(cv::Size(color_map.get_width(), color_map.get_height()), CV_8UC3, (void *)color_map.get_data(), cv::Mat::AUTO_STEP);
@@ -143,10 +179,10 @@ int main(int argc, char **argv) try
         }
 
         // 検出したマーカーの描画
-//        cv::aruco::drawDetectedMarkers(color, marker_corners, marker_ids);
+        cv::aruco::drawDetectedMarkers(color, marker_corners, marker_ids);
        // cv::aruco::drawAxis(color, cameraMatrix, distCoeffs, rvecs, tvecs, 0.1);
         cv::Mat line_in = color;
-        cv::line(line_in,cv::Point(340,240),cv::Point(940,240), cv::Scalar(255,100,100), 5, 16);
+        cv::line(line_in,cv::Point(340,240),cv::Point(940,240), cv::Scalar(255,225,100), 5, 16);
                 
         cv::imshow("marker_detection", line_in);
         writer << color;
