@@ -10,11 +10,13 @@
 #include <sstream>
 #include <fstream>
 
-constexpr std::size_t WIDTH = 1280;
-constexpr std::size_t HEIGHT = 720;
+constexpr std::size_t WIDTH = 1280/2;
+constexpr std::size_t HEIGHT = 720/2;
 constexpr double ratio = WIDTH / (double)HEIGHT;
-constexpr bool apply_hole_filter = true;
+constexpr bool filter = true;
 constexpr short hole_fillter_mode = 1;
+
+
 
 int main(int argc, char **argv) try
 {
@@ -29,7 +31,7 @@ int main(int argc, char **argv) try
 
     cs_connection::RsDataMsg rs_msg;
 
-    //rs2::colorizer cr;
+    rs2::colorizer cr;
 
     rs2::config cfg;
     cfg.enable_stream(RS2_STREAM_COLOR, WIDTH, HEIGHT, RS2_FORMAT_BGR8, 30);
@@ -38,6 +40,7 @@ int main(int argc, char **argv) try
     auto profile = pipe.start(cfg);
     auto depth_stream = profile.get_stream(RS2_STREAM_COLOR).as<rs2::video_stream_profile>();
     rs2::hole_filling_filter hole_filling(hole_fillter_mode);
+    rs2::spatial_filter spat_filling;
     // rs2::align align_to_depth(RS2_STREAM_DEPTH);
 
     auto intr = depth_stream.get_intrinsics();
@@ -76,20 +79,26 @@ int main(int argc, char **argv) try
         auto aligned_frames = align_to_color.process(frames);
         auto depth_map = aligned_frames.get_depth_frame();
         auto color_map = aligned_frames.get_color_frame();
-        if (apply_hole_filter) {
+        if (filter) {
             depth_map = hole_filling.process(depth_map);
+            depth_map = spat_filling.process(depth_map);
         }
 
         cv::Mat color(cv::Size(color_map.get_width(), color_map.get_height()), CV_8UC3, (void *)color_map.get_data(), cv::Mat::AUTO_STEP);
-        dist_left_base = depth_map.get_distance(280,540);
-        dist_right_base = depth_map.get_distance(1000,540);
+        
+        dist_left_base = depth_map.get_distance(280,530);
+        dist_right_base = depth_map.get_distance(1000,530);
+
         float diff_base_distance = dist_left_base - dist_right_base;
-        cv::line(color,cv::Point(280,540),cv::Point(280,540), cv::Scalar(255,225,100), 10, 16);
-        cv::line(color,cv::Point(1000,540),cv::Point(1000,540), cv::Scalar(255,225,100), 10, 16);
-        cv::line(color,cv::Point(340,240),cv::Point(940,240), cv::Scalar(255,225,100), 5, 16);
-        if(diff_base_distance < 3){
+        cv::line(color,cv::Point(280,530),cv::Point(280,530), cv::Scalar(0,255,100), 10, 16);
+        cv::line(color,cv::Point(1000,530),cv::Point(1000,530), cv::Scalar(255,225,100), 10, 16);
+        cv::line(color,cv::Point(340,215),cv::Point(940,215), cv::Scalar(255,0,0), 5, 16);
+        /*if(diff_base_distance < 1){
             std::cout << diff_base_distance * 1000 << std::endl;
-        }
+        }*/
+        std::cout << dist_left_base << std::endl;
+        //std::cout << dist_right_base << std::endl;
+
         cv::imshow("set",color);
         //depth_map.get_distance()
 //      
@@ -105,8 +114,8 @@ int main(int argc, char **argv) try
         start_count = start_count + 1;
         distance_save[0] = distance_save[1];
         distance_save[1] = distance_save[2];
-        distance_save[2] = distance_save[3];
-        distance_save[3] = distance_save[4];
+    //    distance_save[2] = distance_save[3];
+  //      distance_save[3] = distance_save[4];
         
         rs2::frameset frames = pipe.wait_for_frames();
         //rs2::depth_frame depth_point = frames.get_depth_frame;
@@ -114,10 +123,11 @@ int main(int argc, char **argv) try
         auto aligned_frames = align_to_color.process(frames);
         auto depth_map = aligned_frames.get_depth_frame();
         auto color_map = aligned_frames.get_color_frame();
-         if (apply_hole_filter) {
+         if (filter) {
             depth_map = hole_filling.process(depth_map);
+            depth_map = spat_filling.process(depth_map);
         }
-//        auto colorized_depth = cr.colorize(depth_map);
+       // auto colorized_depth = cr.colorize(depth_map);
 
         cv::Mat color(cv::Size(color_map.get_width(), color_map.get_height()), CV_8UC3, (void *)color_map.get_data(), cv::Mat::AUTO_STEP);
 //        cv::Mat depth(cv::Size(depth_map.get_width(), depth_map.get_height()), CV_8UC3, (void *)colorized_depth.get_data(), cv::Mat::AUTO_STEP);
@@ -145,17 +155,17 @@ int main(int argc, char **argv) try
 
                 std::chrono::steady_clock::time_point now_time = std::chrono::steady_clock::now();
                 std::chrono::milliseconds elapsed_time = std::chrono::duration_cast<std::chrono::milliseconds>(now_time - previous_time);
-                if (elapsed_time.count() > 15)
+                if (elapsed_time.count() > 1)
                 {
                     float point_center_marker_x = sum_marker_coordinate_x / 4;
                     float point_center_marker_z = sum_marker_coordinate_z / 4;
 
                     float marker_distance = 0;
 
-                    distance_save[4] = (depth_map.get_distance(point_center_marker_x, point_center_marker_z) + depth_map.get_distance(point_center_marker_x + 1, point_center_marker_z) + depth_map.get_distance(point_center_marker_x - 1, point_center_marker_z) + depth_map.get_distance(point_center_marker_x, point_center_marker_z - 1) + depth_map.get_distance(point_center_marker_x, point_center_marker_z + 1))  / 5.0;
-                    start_count++;                    
-                    if(start_count > 8){
-                        marker_distance = (distance_save[0] + distance_save[1] + distance_save[2] + distance_save[3] + distance_save[4]) / 5;
+                    distance_save[2] = (depth_map.get_distance(point_center_marker_x, point_center_marker_z) + depth_map.get_distance(point_center_marker_x + 1, point_center_marker_z) + depth_map.get_distance(point_center_marker_x - 1, point_center_marker_z) + depth_map.get_distance(point_center_marker_x, point_center_marker_z - 1) + depth_map.get_distance(point_center_marker_x, point_center_marker_z + 1))  / 5.0;
+                    start_count++;
+                    if(start_count > 5){
+                        marker_distance = (distance_save[0] + distance_save[1] + distance_save[2]) / 3;
                         start_count = 8;
                         float point[3] = {0, 0, 0};
                         float pixel[2] = {0, 0};
@@ -168,7 +178,7 @@ int main(int argc, char **argv) try
                         float center_marker_y = point[2] * 1000; 
                         float center_marker_z = point[1] * 1000; 
                         log << center_marker_x << "," << center_marker_y << "," << center_marker_z << std::endl;
-                        ROS_INFO("x:%f  y:%f  z:%f   d:%f", center_marker_x, center_marker_y, center_marker_z, marker_distance);
+                        ROS_INFO("x:%f  y:%f  z:%f"  , center_marker_x, center_marker_y, center_marker_z);
                         rs_msg.x_distance = center_marker_x;
                         rs_msg.y_distance = center_marker_y;
                         rs_msg.z_distance = center_marker_z;
@@ -182,13 +192,14 @@ int main(int argc, char **argv) try
         cv::aruco::drawDetectedMarkers(color, marker_corners, marker_ids);
        // cv::aruco::drawAxis(color, cameraMatrix, distCoeffs, rvecs, tvecs, 0.1);
         cv::Mat line_in = color;
-        cv::line(line_in,cv::Point(340,240),cv::Point(940,240), cv::Scalar(255,225,100), 5, 16);
+        cv::line(line_in,cv::Point(340/2,215/2),cv::Point(940/2,215/2), cv::Scalar(255,0,100), 5, 16);
                 
         cv::imshow("marker_detection", line_in);
+//        cv::imshow("cr",depth);
         writer << color;
         int key = cv::waitKey(10); 
         if(key == 115){
-            //cv::imwrite("data.png", color);
+            cv::imwrite("data.png", color);
             std::cout << "cap" << std::endl;
             numbering++;
             std::ostringstream picture_name;
@@ -199,7 +210,7 @@ int main(int argc, char **argv) try
         }   
         
         count = count + 1;
-        if(count > 5){
+        if(count > 3){
             count = 0;
         }
 
