@@ -16,11 +16,8 @@ constexpr double ratio = WIDTH / (double)HEIGHT;
 constexpr bool filter = true;
 constexpr short hole_fillter_mode = 1;
 
-
-
 int main(int argc, char **argv) try
 {
-
     ros::init(argc, argv, "realsense_info");
     ros::NodeHandle nh;
 
@@ -53,7 +50,7 @@ int main(int argc, char **argv) try
    // cv::Mat cameraMatrix, distCoeffs;
     
     float distance_save[5] {0,0,0,0,0};
-    short count = 0;
+    //short count = 0;
     short start_count = 0;
     int numbering = 0;
     //std::time_t 
@@ -85,14 +82,15 @@ int main(int argc, char **argv) try
         }
 
         cv::Mat color(cv::Size(color_map.get_width(), color_map.get_height()), CV_8UC3, (void *)color_map.get_data(), cv::Mat::AUTO_STEP);
+        //cv::cvtColor(color, color,CV_RGB2GRAY);
         
-        dist_left_base = depth_map.get_distance(280,530);
-        dist_right_base = depth_map.get_distance(1000,530);
+        dist_left_base = depth_map.get_distance(280/2,530/2);
+        dist_right_base = depth_map.get_distance(1000/2,530/2);
 
         float diff_base_distance = dist_left_base - dist_right_base;
-        cv::line(color,cv::Point(280,530),cv::Point(280,530), cv::Scalar(0,255,100), 10, 16);
-        cv::line(color,cv::Point(1000,530),cv::Point(1000,530), cv::Scalar(255,225,100), 10, 16);
-        cv::line(color,cv::Point(340,215),cv::Point(940,215), cv::Scalar(255,0,0), 5, 16);
+        cv::line(color,cv::Point(280/2,530/2),cv::Point(280/2,530/2), cv::Scalar(0,255,100), 10, 16);
+        cv::line(color,cv::Point(1000/2,530/2),cv::Point(1000/2,530/2), cv::Scalar(255,225,100), 10, 16);
+        cv::line(color,cv::Point(340/2,216/2),cv::Point(940/2,216/2), cv::Scalar(255,0,0), 5, 16);
         /*if(diff_base_distance < 1){
             std::cout << diff_base_distance * 1000 << std::endl;
         }*/
@@ -100,9 +98,8 @@ int main(int argc, char **argv) try
         //std::cout << dist_right_base << std::endl;
 
         cv::imshow("set",color);
-        //depth_map.get_distance()
-//      
-        if(cv::waitKey(10) == 116){
+        //depth_map.get_distance()      
+        if(cv::waitKey(5) == 116){
             cv::destroyAllWindows();
             break;
         }
@@ -114,8 +111,8 @@ int main(int argc, char **argv) try
         start_count = start_count + 1;
         distance_save[0] = distance_save[1];
         distance_save[1] = distance_save[2];
-    //    distance_save[2] = distance_save[3];
-  //      distance_save[3] = distance_save[4];
+        distance_save[2] = distance_save[3];
+        distance_save[3] = distance_save[4];
         
         rs2::frameset frames = pipe.wait_for_frames();
         //rs2::depth_frame depth_point = frames.get_depth_frame;
@@ -125,20 +122,23 @@ int main(int argc, char **argv) try
         auto color_map = aligned_frames.get_color_frame();
          if (filter) {
             depth_map = hole_filling.process(depth_map);
-            depth_map = spat_filling.process(depth_map);
+            //depth_map = spat_filling.process(depth_map);
         }
        // auto colorized_depth = cr.colorize(depth_map);
 
         cv::Mat color(cv::Size(color_map.get_width(), color_map.get_height()), CV_8UC3, (void *)color_map.get_data(), cv::Mat::AUTO_STEP);
 //        cv::Mat depth(cv::Size(depth_map.get_width(), depth_map.get_height()), CV_8UC3, (void *)colorized_depth.get_data(), cv::Mat::AUTO_STEP);
+        //cv::cvtColor(color, color,CV_RGB2GRAY);
         // マーカーの検出
         std::vector<int> marker_ids;
         std::vector<std::vector<cv::Point2f>> marker_corners;
         cv::Ptr<cv::aruco::DetectorParameters> parameters = cv::aruco::DetectorParameters::create();
         cv::aruco::detectMarkers(color, dictionary, marker_corners, marker_ids, parameters);
+
+//--------------------pose estimation-------------------------------------//
 //        std::vector< cv::Vec3d > rvecs, tvecs;
 //        cv::aruco::estimatePoseSingleMarkers(marker_corners, 0.05, cameraMatrix, distCoeffs, rvecs, tvecs);
-
+//----------------------------------------------------------------------------//
         float sum_marker_coordinate_x = 0;
         float sum_marker_coordinate_z = 0;
         float marker_coodinate_y = 0;
@@ -162,10 +162,10 @@ int main(int argc, char **argv) try
 
                     float marker_distance = 0;
 
-                    distance_save[2] = (depth_map.get_distance(point_center_marker_x, point_center_marker_z) + depth_map.get_distance(point_center_marker_x + 1, point_center_marker_z) + depth_map.get_distance(point_center_marker_x - 1, point_center_marker_z) + depth_map.get_distance(point_center_marker_x, point_center_marker_z - 1) + depth_map.get_distance(point_center_marker_x, point_center_marker_z + 1))  / 5.0;
+                    distance_save[4] = (depth_map.get_distance(point_center_marker_x, point_center_marker_z) + depth_map.get_distance(point_center_marker_x + 1, point_center_marker_z) + depth_map.get_distance(point_center_marker_x - 1, point_center_marker_z) + depth_map.get_distance(point_center_marker_x, point_center_marker_z - 1) + depth_map.get_distance(point_center_marker_x, point_center_marker_z + 1))  / 5.0;
                     start_count++;
-                    if(start_count > 5){
-                        marker_distance = (distance_save[0] + distance_save[1] + distance_save[2]) / 3;
+                    if(start_count > 8){
+                        marker_distance = (distance_save[0] + distance_save[1] + distance_save[2] + distance_save[3] + distance_save[4]) / 5;
                         start_count = 8;
                         float point[3] = {0, 0, 0};
                         float pixel[2] = {0, 0};
@@ -209,10 +209,10 @@ int main(int argc, char **argv) try
             break;
         }   
         
-        count = count + 1;
+       /* count = count + 1;
         if(count > 3){
             count = 0;
-        }
+        }*/
 
         loop_rate.sleep();
         ros::spinOnce();
