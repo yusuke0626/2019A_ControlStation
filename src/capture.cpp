@@ -66,7 +66,7 @@ int main(int argc, char **argv) try
 
     video_name << std::ctime(&sys_time) << ".mp4" << std::flush;
     cv::VideoWriter::fourcc('M', 'P', '4', 'S');
-    cv::VideoWriter writer(video_name.str(),cv::VideoWriter::fourcc('M', 'P', '4', 'S'), 8.0, cv::Size(WIDTH,HEIGHT));
+    cv::VideoWriter writer(video_name.str(),cv::VideoWriter::fourcc('M', 'P', '4', 'S'), 30.0, cv::Size(WIDTH,HEIGHT));
 
     while(true){
         float dist_left_base,dist_right_base;
@@ -91,6 +91,10 @@ int main(int argc, char **argv) try
         cv::line(color,cv::Point(280/2,530/2),cv::Point(280/2,530/2), cv::Scalar(0,255,100), 10, 16);
         cv::line(color,cv::Point(1000/2,530/2),cv::Point(1000/2,530/2), cv::Scalar(255,225,100), 10, 16);
         cv::line(color,cv::Point(340/2,216/2),cv::Point(940/2,216/2), cv::Scalar(255,0,0), 5, 16);
+        cv::line(color,cv::Point(613,0),cv::Point(620,290), cv::Scalar(255,0,0), 5, 16);
+        cv::line(color,cv::Point(25,0),cv::Point(18,290), cv::Scalar(255,0,0), 5, 16);
+        cv::line(color,cv::Point(50,280),cv::Point(50,335), cv::Scalar(255,255,0), 1, 4);
+        cv::line(color,cv::Point(590,280),cv::Point(590,335), cv::Scalar(255,255,0), 1, 4);
         /*if(diff_base_distance < 1){
             std::cout << diff_base_distance * 1000 << std::endl;
         }*/
@@ -192,7 +196,7 @@ int main(int argc, char **argv) try
         cv::aruco::drawDetectedMarkers(color, marker_corners, marker_ids);
        // cv::aruco::drawAxis(color, cameraMatrix, distCoeffs, rvecs, tvecs, 0.1);
         cv::Mat line_in = color;
-        cv::line(line_in,cv::Point(340/2,215/2),cv::Point(940/2,215/2), cv::Scalar(255,0,100), 5, 16);
+       // cv::line(line_in,cv::Point(340/2,215/2),cv::Point(940/2,215/2), cv::Scalar(255,0,100), 5, 16);
                 
         cv::imshow("marker_detection", line_in);
 //        cv::imshow("cr",depth);
