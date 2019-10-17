@@ -67,6 +67,9 @@ int main(int argc, char **argv) try
     video_name << std::ctime(&sys_time) << ".mp4" << std::flush;
     cv::VideoWriter::fourcc('M', 'P', '4', 'S');
     cv::VideoWriter writer(video_name.str(), cv::VideoWriter::fourcc('M', 'P', '4', 'S'), 30.0, cv::Size(WIDTH, HEIGHT));
+   
+    cv::Mat cameraMatrix = (cv::Mat_<double>(3,3) << 465.33068596, 0, 321.98956352, 0, 464.52222509, 164.37789961, 0, 0, 1);        
+    cv::Mat distCoeffs = (cv::Mat_<double>(1,5) << 0.07103586, 0.13770576, -0.00838434, -0.00454973, -0.81692506);
 
     while (true)
     {
@@ -140,9 +143,12 @@ int main(int argc, char **argv) try
         // マーカーの検出
         std::vector<int> marker_ids;
         std::vector<std::vector<cv::Point2f>> marker_corners;
+        std::vector<cv::Vec3d> rvecs, tvecs;
         cv::Ptr<cv::aruco::DetectorParameters> parameters = cv::aruco::DetectorParameters::create();
         cv::aruco::detectMarkers(color, dictionary, marker_corners, marker_ids, parameters);
-
+        cv::aruco::estimatePoseSingleMarkers(marker_corners, 0.05, cameraMatrix, distCoeffs, rvecs,tvecs);
+        cv::aruco::drawDetectedMarkers(color, marker_corners, marker_ids);
+        
         //--------------------pose estimation-------------------------------------//
         //        std::vector< cv::Vec3d > rvecs, tvecs;
         //        cv::aruco::estimatePoseSingleMarkers(marker_corners, 0.05, cameraMatrix, distCoeffs, rvecs, tvecs);
@@ -165,6 +171,7 @@ int main(int argc, char **argv) try
                         sum_marker_coordinate_z += marker_corners[marker_num_count][i].y;
                     }
 
+                    cv::aruco::drawAxis(color, cameraMatrix, distCoeffs, rvecs[0], tvecs[0], 0.1);
                     std::chrono::steady_clock::time_point now_time = std::chrono::steady_clock::now();
                     std::chrono::milliseconds elapsed_time = std::chrono::duration_cast<std::chrono::milliseconds>(now_time - previous_time);
                     if (elapsed_time.count() > 1)
@@ -200,6 +207,7 @@ int main(int argc, char **argv) try
                     }
                 }
             }
+            
             if (exist == false)
             {
                 float center_marker_x = -50000;
@@ -225,8 +233,12 @@ int main(int argc, char **argv) try
             ros_realsense_pub.publish(rs_msg);
         }
 
-        // 検出したマーカーの描画
-        cv::aruco::drawDetectedMarkers(color, marker_corners, marker_ids);
+        // 検出したマーカー
+
+       
+       // std::cout << "rv" << std::endl;
+        //if(exist == true){
+        //}
         // cv::aruco::drawAxis(color, cameraMatrix, distCoeffs, rvecs, tvecs, 0.1);
         cv::Mat line_in = color;
         // cv::line(line_in,cv::Point(340/2,215/2),cv::Point(940/2,215/2), cv::Scalar(255,0,100), 5, 16);
@@ -237,11 +249,11 @@ int main(int argc, char **argv) try
         int key = cv::waitKey(10);
         if (key == 115)
         {
-            cv::imwrite("data.png", color);
+            cv::imwrite("data.jpg", color);
             std::cout << "cap" << std::endl;
             numbering++;
             std::ostringstream picture_name;
-            picture_name << "data" << numbering << ".png " << std::flush;
+            picture_name << "data" << numbering << ".jpg" << std::flush;
             cv::imwrite(picture_name.str(), color);
         }
         else if (key == 27)
