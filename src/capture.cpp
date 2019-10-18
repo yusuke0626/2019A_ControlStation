@@ -68,9 +68,12 @@ int main(int argc, char **argv) try
     cv::VideoWriter::fourcc('M', 'P', '4', 'S');
     cv::VideoWriter writer(video_name.str(), cv::VideoWriter::fourcc('M', 'P', '4', 'S'), 30.0, cv::Size(WIDTH, HEIGHT));
    
-    cv::Mat cameraMatrix = (cv::Mat_<double>(3,3) << 465.33068596, 0, 321.98956352, 0, 464.52222509, 164.37789961, 0, 0, 1);        
-    cv::Mat distCoeffs = (cv::Mat_<double>(1,5) << 0.07103586, 0.13770576, -0.00838434, -0.00454973, -0.81692506);
+    //cv::Mat cameraMatrix = (cv::Mat_<double>(3,3) << 465.33068596, 0, 321.98956352, 0, 464.52222509, 164.37789961, 0, 0, 1);    
 
+    cv::Mat cameraMatrix = (cv::Mat_<double>(3,3) << 465.33068563,0,321.98961202,0,464.52224766 ,164.37790344,0,0,1);    
+    //cv::Mat distCoeffs = (cv::Mat_<double>(1,5) << 0.07103586, 0.13770576, -0.00838434, -0.00454973, -0.81692506);
+
+    cv::Mat distCoeffs = (cv::Mat_<double>(1,5) << 0.07103579,  0.13770855, -0.00838435, -0.00454967, -0.81693468);
     while (true)
     {
         float dist_left_base, dist_right_base;
@@ -146,7 +149,7 @@ int main(int argc, char **argv) try
         std::vector<cv::Vec3d> rvecs, tvecs;
         cv::Ptr<cv::aruco::DetectorParameters> parameters = cv::aruco::DetectorParameters::create();
         cv::aruco::detectMarkers(color, dictionary, marker_corners, marker_ids, parameters);
-        cv::aruco::estimatePoseSingleMarkers(marker_corners, 0.05, cameraMatrix, distCoeffs, rvecs,tvecs);
+        //cv::aruco::estimatePoseSingleMarkers(marker_corners, 0.05, cameraMatrix, distCoeffs, rvecs,tvecs);
         cv::aruco::drawDetectedMarkers(color, marker_corners, marker_ids);
         
         //--------------------pose estimation-------------------------------------//
@@ -171,7 +174,10 @@ int main(int argc, char **argv) try
                         sum_marker_coordinate_z += marker_corners[marker_num_count][i].y;
                     }
 
-                    cv::aruco::drawAxis(color, cameraMatrix, distCoeffs, rvecs[0], tvecs[0], 0.1);
+                    cv::aruco::estimatePoseSingleMarkers(marker_corners, 0.272, cameraMatrix, distCoeffs, rvecs,tvecs);
+                    cv::aruco::drawAxis(color, cameraMatrix, distCoeffs, rvecs[marker_num_count], tvecs[marker_num_count], 0.1);
+                    std::cout << tvecs[marker_num_count].val[0]  << "   " << tvecs[marker_num_count].val[1] << "   " << tvecs[marker_num_count].val[2] << std::endl;
+                    std::cout << rvecs[marker_num_count].val[0]  << "   " << rvecs[marker_num_count].val[1] << "   " << rvecs[marker_num_count].val[2] << std::endl;
                     std::chrono::steady_clock::time_point now_time = std::chrono::steady_clock::now();
                     std::chrono::milliseconds elapsed_time = std::chrono::duration_cast<std::chrono::milliseconds>(now_time - previous_time);
                     if (elapsed_time.count() > 1)
@@ -194,11 +200,12 @@ int main(int argc, char **argv) try
                             rs2_deproject_pixel_to_point(point, &intr, pixel, marker_distance);
                             //double distance_sum = marker_distance + distance_sum;
                             previous_time = now_time;
-                            float center_marker_x = point[0] * 1000;
-                            float center_marker_y = point[2] * 1000;
-                            float center_marker_z = point[1] * 1000;
+                            float center_marker_x = (point[0] * 700 + tvecs[marker_num_count].val[0] * 1300)/2;
+                            float center_marker_y = (point[2] * 700 + tvecs[marker_num_count].val[2] * 1300)/2;
+                            float center_marker_z = (point[1] * 700 + tvecs[marker_num_count].val[1] * 1300)/2;
+
                             log << center_marker_x << "," << center_marker_y << "," << center_marker_z << std::endl;
-                            ROS_INFO("x:%f  y:%f  z:%f", center_marker_x, center_marker_y, center_marker_z);
+                            ROS_INFO("x:%f  y:%f  z:%f ", center_marker_x, center_marker_y, center_marker_z);
                             rs_msg.x_distance = center_marker_x;
                             rs_msg.y_distance = center_marker_y;
                             rs_msg.z_distance = center_marker_z;
