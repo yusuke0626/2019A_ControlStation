@@ -194,7 +194,7 @@ int main(int argc, char **argv) try
                         sum_marker_coordinate_z += marker_corners[marker_num_count][i].y;
                     }
 
-                    cv::aruco::estimatePoseSingleMarkers(marker_corners, 0.272, cameraMatrix, distCoeffs, rvecs,tvecs);
+                    cv::aruco::estimatePoseSingleMarkers(marker_corners, 0.385, cameraMatrix, distCoeffs, rvecs,tvecs);
                     rgb.x = tvecs[marker_num_count].val[0];
                     rgb.y = tvecs[marker_num_count].val[2];
                     rgb.z = tvecs[marker_num_count].val[1];
@@ -225,7 +225,7 @@ int main(int argc, char **argv) try
                         if (start_count > 8)
                         {
                             for(int k = 0; k < 4; k++){
-                                marker_info_average.at(k) = (distance_save.at(0)[k] + distance_save.at(1)[k] + distance_save.at(2)[k] + distance_save.at(3)[k] + distance_save.at(4)[k]) / 5;
+                                marker_info_average.at(k) = (distance_save.at(0)[k]  + (distance_save.at(1)[k] * 0.4 + distance_save.at(2)[k] * 0.3 + distance_save.at(3)[k] * 0.2 + distance_save.at(4)[k] * 0.1)) / 2;
                             }
                             depth_average = marker_info_average.at(0);
                             rgb.x = marker_info_average.at(1);
