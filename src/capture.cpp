@@ -1,4 +1,7 @@
 #include <ros/ros.h>
+#include <cv_bridge/cv_bridge.h>
+#include <image_transport/image_transport.h>
+#include <cs_connection/PrintStatus.h>
 #include <iostream>
 #include <chrono>
 #include <ctime>
@@ -15,6 +18,10 @@ constexpr std::size_t HEIGHT = 720 / 2;
 constexpr double ratio = WIDTH / (double)HEIGHT;
 constexpr bool filter = true;
 constexpr short hole_fillter_mode = 1;
+constexpr int LOGO_X = 490;
+constexpr int LOGO_Y = 320;
+
+int orion_status;
 
 struct  realsense_distance
 {
@@ -33,16 +40,21 @@ struct rgb_data
     float pitch;
 };
 
+void statusCallback(const cs_connection::PrintStatus& orion)
+{
+  orion_status = orion.status;
+}
 int main(int argc, char **argv) try
 {
     ros::init(argc, argv, "realsense_info");
     ros::NodeHandle nh;
 
-    ros::Publisher ros_realsense_pub = nh.advertise<cs_connection::RsDataMsg>("rs_msg", 1000);
+    image_transport::ImageTransport it(nh);
+    image_transport::Publisher image_pub = it.advertise("image_msg", 10);
+    ros::Publisher ros_realsense_pub = nh.advertise<cs_connection::RsDataMsg>("rs_msg", 500);
     ros::Rate loop_rate(100);
 
     ROS_INFO("Started control station");
-
     cs_connection::RsDataMsg rs_msg;
 
     rs2::colorizer cr;
@@ -58,7 +70,6 @@ int main(int argc, char **argv) try
     // rs2::align align_to_depth(RS2_STREAM_DEPTH);
 
     auto intr = depth_stream.get_intrinsics();
-
     // dictionary生成
     const cv::aruco::PREDEFINED_DICTIONARY_NAME dictionary_name = cv::aruco::DICT_4X4_50;
     cv::Ptr<cv::aruco::Dictionary> dictionary = cv::aruco::getPredefinedDictionary(dictionary_name);
@@ -93,6 +104,15 @@ int main(int argc, char **argv) try
     //cv::Mat distCoeffs = (cv::Mat_<double>(1,5) << 0.07103586, 0.13770576, -0.00838434, -0.00454973, -0.81692506);
 
     cv::Mat distCoeffs = (cv::Mat_<double>(1,5) << 0.07103579,  0.13770855, -0.00838435, -0.00454967, -0.81693468);
+
+    cv::Mat roboken_logo = cv::imread("/home/yusuke/roboken.jpg",1);
+    cv::resize(roboken_logo,roboken_logo,cv::Size(),0.1,0.1);    
+
+    bool start_orion = false;
+    bool bathtowel_finish = false;
+    bool sheets_finish = false;
+    bool arrival_home = false;
+
     while (true)
     {
         float dist_left_base, dist_right_base;
@@ -102,6 +122,7 @@ int main(int argc, char **argv) try
         auto aligned_frames = align_to_color.process(frames);
         auto depth_map = aligned_frames.get_depth_frame();
         auto color_map = aligned_frames.get_color_frame();
+        
         if (filter)
         {
             depth_map = hole_filling.process(depth_map);
@@ -194,7 +215,7 @@ int main(int argc, char **argv) try
                         sum_marker_coordinate_z += marker_corners[marker_num_count][i].y;
                     }
 
-                    cv::aruco::estimatePoseSingleMarkers(marker_corners, 0.385, cameraMatrix, distCoeffs, rvecs,tvecs);
+                    cv::aruco::estimatePoseSingleMarkers(marker_corners, 0.406, cameraMatrix, distCoeffs, rvecs,tvecs);
                     rgb.x = tvecs[marker_num_count].val[0];
                     rgb.y = tvecs[marker_num_count].val[2];
                     rgb.z = tvecs[marker_num_count].val[1];
@@ -283,16 +304,63 @@ int main(int argc, char **argv) try
         // 検出したマーカー
 
        
-       // std::cout << "rv" << std::endl;
-        //if(exist == true){
-        //}
-        // cv::aruco::drawAxis(color, cameraMatrix, distCoeffs, rvecs, tvecs, 0.1);
         cv::Mat line_in = color;
         // cv::line(line_in,cv::Point(340/2,215/2),cv::Point(940/2,215/2), cv::Scalar(255,0,100), 5, 16);
 
         cv::imshow("marker_detection", line_in);
         //        cv::imshow("cr",depth);
         writer << color;
+
+        switch(orion_status){
+            case 1:
+                start_orion = true;
+                break;
+            case 12:
+                bathtowel_finish = true;
+                break;
+            case 15:
+                sheets_finish = true;
+                break;
+            case 21:
+                arrival_home = true;
+                break;
+            default:
+                start_orion = false;
+                bathtowel_finish = false;
+                sheets_finish = false;
+                arrival_home = false;
+                break;
+        }
+
+        cv::Mat merge;
+
+        if(start_orion == true){
+            merge = color(cv::Rect(LOGO_X,LOGO_Y,roboken_logo.cols,roboken_logo.rows));
+            roboken_logo.copyTo(merge);
+            sensor_msgs::ImagePtr picture_msg = cv_bridge::CvImage(std_msgs::Header(),"bgr8", color).toImageMsg();
+            start_orion = false;            
+            image_pub.publish(picture_msg);
+        }else if(bathtowel_finish == true){
+            merge = color(cv::Rect(LOGO_X,LOGO_Y,roboken_logo.cols,roboken_logo.rows));
+            roboken_logo.copyTo(merge);
+            sensor_msgs::ImagePtr picture_msg = cv_bridge::CvImage(std_msgs::Header(),"bgr8", color).toImageMsg();
+            bathtowel_finish = false;            
+            image_pub.publish(picture_msg);
+        }else if(sheets_finish == true){
+            merge = color(cv::Rect(LOGO_X,LOGO_Y,roboken_logo.cols,roboken_logo.rows));
+            roboken_logo.copyTo(merge);
+            sensor_msgs::ImagePtr picture_msg = cv_bridge::CvImage(std_msgs::Header(),"bgr8", color).toImageMsg();
+            sheets_finish = false;            
+            image_pub.publish(picture_msg);
+        }else if(arrival_home == true){
+            merge = color(cv::Rect(LOGO_X,LOGO_Y,roboken_logo.cols,roboken_logo.rows));
+            roboken_logo.copyTo(merge);
+            sensor_msgs::ImagePtr picture_msg = cv_bridge::CvImage(std_msgs::Header(),"bgr8", color).toImageMsg();
+            arrival_home = false;            
+            image_pub.publish(picture_msg);
+        }
+
+        //sensor_msgs::ImagePtr picture_msg = cv_bridge::CvImage(std_msgs::Header(),"bgr8", color).toImageMsg();
         int key = cv::waitKey(10);
         if (key == 115)
         {
