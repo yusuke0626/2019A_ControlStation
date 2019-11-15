@@ -1,6 +1,7 @@
 #include <ros/ros.h>
-#include <cv_bridge/cv_bridge.h>
-#include <image_transport/image_transport.h>
+#include <cstdlib>
+//#include <cv_bridge/cv_bridge.h>
+//#include <image_transport/image_transport.h>
 #include <cs_connection/PrintStatus.h>
 #include <iostream>
 #include <chrono>
@@ -11,6 +12,7 @@
 #include <librealsense2/rs.hpp>
 #include <librealsense2/rsutil.h>
 #include <sstream>
+#include <string>
 #include <fstream>
 
 constexpr std::size_t WIDTH = 1280 / 2;
@@ -18,8 +20,8 @@ constexpr std::size_t HEIGHT = 720 / 2;
 constexpr double ratio = WIDTH / (double)HEIGHT;
 constexpr bool filter = true;
 constexpr short hole_fillter_mode = 1;
-constexpr int LOGO_X = 490;
-constexpr int LOGO_Y = 320;
+constexpr int LOGO_X = 350;
+constexpr int LOGO_Y = 290;
 
 int orion_status;
 
@@ -40,18 +42,30 @@ struct rgb_data
     float pitch;
 };
 
+void sendPicture(std::string filename)
+{
+    std::string scp("sshpass -p 'Chihayahuru17Ariwara' scp ");
+    std::string adr(" tanaka@tanaka-CFSZ5-3L.local:/home/tanaka/2019robocon/src/robot_twitter/img/");
+    std::string putcommand = scp + filename + adr;
+    const char* cstr = putcommand.c_str();
+    std::system(cstr);
+}
+
 void statusCallback(const cs_connection::PrintStatus& orion)
 {
   orion_status = orion.status;
+  std::cout << "orion_status" << std::endl;
 }
+
 int main(int argc, char **argv) try
 {
     ros::init(argc, argv, "realsense_info");
     ros::NodeHandle nh;
 
-    image_transport::ImageTransport it(nh);
-    image_transport::Publisher image_pub = it.advertise("image_msg", 10);
+    //image_transport::ImageTransport it(nh);
+    //image_transport::Publisher image_pub = it.advertise("image_msg", 10);
     ros::Publisher ros_realsense_pub = nh.advertise<cs_connection::RsDataMsg>("rs_msg", 500);
+    ros::Subscriber orion_status_sub = nh.subscribe("print_status", 1000, statusCallback);
     ros::Rate loop_rate(100);
 
     ROS_INFO("Started control station");
@@ -224,8 +238,8 @@ int main(int argc, char **argv) try
                     rgb.pitch = rvecs[marker_num_count].val[1] * 180 / M_PI;
                     cv::aruco::drawAxis(color, cameraMatrix, distCoeffs, rvecs[marker_num_count], tvecs[marker_num_count], 0.1);
 
-                    std::cout << rgb.x  << "   " << rgb.y << "   " << rgb.z << std::endl;
-                    std::cout << rgb.yaw << "   " << rgb.roll << "   " << rgb.pitch << std::endl;
+                    //std::cout << rgb.x  << "   " << rgb.y << "   " << rgb.z << std::endl;
+                    //std::cout << rgb.yaw << "   " << rgb.roll << "   " << rgb.pitch << std::endl;
                     std::chrono::steady_clock::time_point now_time = std::chrono::steady_clock::now();
                     std::chrono::milliseconds elapsed_time = std::chrono::duration_cast<std::chrono::milliseconds>(now_time - previous_time);
                     if (elapsed_time.count() > 1)
@@ -241,7 +255,7 @@ int main(int argc, char **argv) try
                         distance_save.at(4)[3] = rgb.z;*/
                         distance_save.at(4) = {depth_average,rgb.x,rgb.y,rgb.z};
 
-                        std::cout << " qqq" << std::endl;
+                        //std::cout << " qqq" << std::endl;
                         start_count++;
                         if (start_count > 8)
                         {
@@ -266,7 +280,7 @@ int main(int argc, char **argv) try
                             rdist.rs_z = (point[1] * 1000 + rgb.z * 1000) / 2;
 
                             log << rdist.rs_x << "," << rdist.rs_y << "," << rdist.rs_z << std::endl;
-                            ROS_INFO("x:%f  y:%f  z:%f ", rdist.rs_x, rdist.rs_y, rdist.rs_z);
+                            //ROS_INFO("x:%f  y:%f  z:%f ", rdist.rs_x, rdist.rs_y, rdist.rs_z);
                             rs_msg.x_distance = rdist.rs_x;
                             rs_msg.y_distance = rdist.rs_y;
                             rs_msg.z_distance = rdist.rs_z;
@@ -284,7 +298,7 @@ int main(int argc, char **argv) try
                 rs_msg.x_distance = -50000;
                 rs_msg.y_distance = -50000;
                 rs_msg.z_distance = -50000;
-                std::cout << center_marker_x << std::endl;
+                //std::cout << center_marker_x << std::endl;
                 ros_realsense_pub.publish(rs_msg);
                 exist = false;
             }
@@ -297,7 +311,7 @@ int main(int argc, char **argv) try
             rs_msg.x_distance = -50000;
             rs_msg.y_distance = -50000;
             rs_msg.z_distance = -50000;
-            std::cout << center_marker_x << std::endl;
+            //std::cout << center_marker_x << std::endl;
             ros_realsense_pub.publish(rs_msg);
         }
 
@@ -315,7 +329,7 @@ int main(int argc, char **argv) try
             case 1:
                 start_orion = true;
                 break;
-            case 12:
+            case 7:
                 bathtowel_finish = true;
                 break;
             case 15:
@@ -337,27 +351,39 @@ int main(int argc, char **argv) try
         if(start_orion == true){
             merge = color(cv::Rect(LOGO_X,LOGO_Y,roboken_logo.cols,roboken_logo.rows));
             roboken_logo.copyTo(merge);
-            sensor_msgs::ImagePtr picture_msg = cv_bridge::CvImage(std_msgs::Header(),"bgr8", color).toImageMsg();
+            cv::imwrite("start.jpg",color);
+            //std::cout << "send" << std::endl;
+            sendPicture("start.jpg");
+            //sensor_msgs::ImagePtr picture_msg = cv_bridge::CvImage(std_msgs::Header(),"bgr8", color).toImageMsg();
             start_orion = false;            
-            image_pub.publish(picture_msg);
+            //image_pub.publish(picture_msg);
         }else if(bathtowel_finish == true){
             merge = color(cv::Rect(LOGO_X,LOGO_Y,roboken_logo.cols,roboken_logo.rows));
             roboken_logo.copyTo(merge);
-            sensor_msgs::ImagePtr picture_msg = cv_bridge::CvImage(std_msgs::Header(),"bgr8", color).toImageMsg();
+            cv::imwrite("bathtowel.jpg",color);
+            sendPicture("bathtowel.jpg");
+            //sensor_msgs::ImagePtr picture_msg = cv_bridge::CvImage(std_msgs::Header(),"bgr8", color).toImageMsg();
+            //std::cout << "send" << std::endl;
             bathtowel_finish = false;            
-            image_pub.publish(picture_msg);
+            //image_pub.publish(picture_msg);
         }else if(sheets_finish == true){
             merge = color(cv::Rect(LOGO_X,LOGO_Y,roboken_logo.cols,roboken_logo.rows));
             roboken_logo.copyTo(merge);
-            sensor_msgs::ImagePtr picture_msg = cv_bridge::CvImage(std_msgs::Header(),"bgr8", color).toImageMsg();
+            cv::imwrite("sheets.jpg",color);
+            sendPicture("sheets.jpg");
+            //sensor_msgs::ImagePtr picture_msg = cv_bridge::CvImage(std_msgs::Header(),"bgr8", color).toImageMsg();
+            //std::cout << "send" << std::endl;
             sheets_finish = false;            
-            image_pub.publish(picture_msg);
+            //image_pub.publish(picture_msg);
         }else if(arrival_home == true){
             merge = color(cv::Rect(LOGO_X,LOGO_Y,roboken_logo.cols,roboken_logo.rows));
             roboken_logo.copyTo(merge);
-            sensor_msgs::ImagePtr picture_msg = cv_bridge::CvImage(std_msgs::Header(),"bgr8", color).toImageMsg();
+            cv::imwrite("arrival.jpg",color);
+            sendPicture("arrival.jpg");
+            //sensor_msgs::ImagePtr picture_msg = cv_bridge::CvImage(std_msgs::Header(),"bgr8", color).toImageMsg();
+            //std::cout << "send" << std::endl;
             arrival_home = false;            
-            image_pub.publish(picture_msg);
+            //image_pub.publish(picture_msg);
         }
 
         //sensor_msgs::ImagePtr picture_msg = cv_bridge::CvImage(std_msgs::Header(),"bgr8", color).toImageMsg();
